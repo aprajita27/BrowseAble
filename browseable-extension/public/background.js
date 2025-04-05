@@ -18,103 +18,112 @@ const neuroPromptStyles = {
  * Build a prompt from chunked content that considers element types and neurotype instructions.
  */
 function buildPromptFromChunks(data, neurotype) {
-  const instruction = neuroPromptStyles[neurotype] || "Simplify this content for accessibility.";
   const contentLines = [];
 
-  // Handle the nested structure of chunks
+  // Parse all chunks
   Object.entries(data).forEach(([dataIndex, dataItem]) => {
-    // Each dataItem is an object like { "chunk1": [...sections] }
     Object.entries(dataItem).forEach(([chunkId, sections]) => {
-      // Now process each section in the chunk
       sections.forEach((section, sectionIndex) => {
         if (!section || !section.content) return;
-
         const sectionId = `${chunkId}-${sectionIndex + 1}`;
-        const sectionHeader = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
-
-        // Collect all text from the section for context
-        const sectionText = [];
-
-        // Process content items within the section
-        section.content.forEach((item) => {
-          if (item.text && item.text.trim().length > 0) {
-            sectionText.push(item.text.trim());
-
-            const isShort = item.text.trim().split(" ").length < 5;
-            const prefix = isShort ? "[label]" : `[${item.type}]`;
-            sectionHeader.push(`- ${prefix} "${item.text.trim()}"`);
-          } else if (item.type === "image") {
-            const label = item.alt?.trim() || "No alt text";
-            sectionHeader.push(`- [image] alt="${label}"`);
-          }
+        const sectionLines = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
+        sections.forEach((section, sectionIndex) => {
+          if (!section || !section.content) return;
+        
+          const sectionId = `${chunkId}-${sectionIndex + 1}`;
+          const sectionHeader = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
+        
+          section.content.forEach((item) => {
+            if (item.type === "image") {
+              const base64Info = item.base64 ? "base64_image_provided" : "no_base64";
+              const label = item.alt?.trim() || "No alt text";
+              sectionHeader.push(`- [image] (${base64Info}) alt="${label}"`);
+            } else if (item.text && item.text.trim()) {
+              const isShort = item.text.trim().split(" ").length < 5;
+              const prefix = isShort ? "[label]" : `[${item.type}]`;
+              sectionHeader.push(`- ${prefix} "${item.text.trim()}"`);
+            }
+          });
+        
+          contentLines.push(sectionHeader.join("\n"));
         });
-
-        contentLines.push(sectionHeader.join("\n"));
+        contentLines.push(sectionLines.join('\n'));
       });
     });
   });
 
-  // Create a prompt specific to the neurotype
-  let specificInstructions = "";
+  // Neurotype-specific instructions
+  const neurotypeInstructions = {
+    adhd: `
+For ADHD users:
+- Use short bullet points (max 15 words)
+- Break complex sections into subheadings
+- Highlight key actions or benefits
+- Remove unnecessary tangents or distractions. 
+- If an image is not needed, remove it completely
+- If something is not defined or you are not sure, do not mention it. 
+- Keep content logically organized and easy to scan`.trim(),
 
-  if (neurotype === 'adhd') {
-    specificInstructions = `
-For ADHD readers:
-1. Use bullet points and short sentences
-2. Break complex ideas into clear, manageable chunks
-3. Use headers and lists where possible
-4. Make important information stand out
-5. Remove unnecessary details
-6. Keep a consistent, organized structure
-7. Use concrete language without metaphors
-8. Make it actionable when possible`;
-  } else if (neurotype === 'autism') {
-    specificInstructions = `
-For autistic readers:
-1. Use clear, literal, and concrete language
-2. Avoid figures of speech, sarcasm, or ambiguous wording
-3. Explain things in a logical, step-by-step manner
-4. Define technical terms when they're introduced
-5. Use consistent terminology throughout
-6. Present information in a predictable structure
-7. Be precise and specific
-8. Avoid unnecessary sensory language`;
-  } else if (neurotype === 'blind') {
-    specificInstructions = `
-For blind readers using screen readers:
-1. Use clear, descriptive text that works well when read aloud
-2. Describe images briefly but clearly when mentioned
-3. Use straightforward sentence structures
-4. Don't rely on visual formatting that won't be conveyed by a screen reader
-5. Avoid directional language like "see below" or "as shown above"
-6. Make sure text flows logically without visual cues
-7. Keep paragraphs focused on single ideas`;
-  } else if (neurotype === 'sensory') {
-    specificInstructions = `
-For readers with sensory sensitivities:
-1. Use calm, neutral language
-2. Remove intense sensory descriptions
-3. Use a gentle, soothing tone
-4. Avoid content that might trigger sensory overload
-5. Use shorter sentences and paragraphs
-6. Break intense descriptions into gentler alternatives
-7. Focus on facts rather than emotional or sensory impact`;
-  }
+    autism: `
+For Autistic users:
+- Use literal, step-by-step explanations
+- Avoid idioms, sarcasm, or vague phrasing
+- Keep structure consistent and predictable
+- Use factual, concise descriptions
+- Define concepts clearly where necessary`.trim(),
+
+    blind: `
+For Blind users using screen readers:
+- Use full sentences and clear, linear narrative
+- Describe images with: "This is an image of ..."
+- Provide video context using available captions or inferred description
+- Avoid visual-only references (e.g., "see below")
+- Do not include visual formatting`.trim(),
+
+    sensory: `
+For Sensory-sensitive users:
+- Use a calm, neutral tone throughout
+- Avoid intense or emotionally charged language
+- Prefer short, gentle sentences and soft phrasing
+- Remove emphasis or visual metaphors
+- Simplify paragraphs into evenly-paced information`.trim()
+  };
+
+  const fallback = "Simplify this content for accessibility.";
+  const specificInstructions = neurotypeInstructions[neurotype] || fallback;
 
   return `
-You are an AI assistant specializing in adapting web content for users with ${neurotype}.
+You are an accessibility AI adapting web content for neurodivergent users.
+Neurotype: ${neurotype.toUpperCase()}
+
+Adapt each section using the rules below:
 ${specificInstructions}
 
-Instructions: ${instruction}
+Universal Rules for All Neurotypes:
+- Do not skip any section, even if repetitive
+- Do not over-summarize or merge content across sections
+- Preserve facts, processes, names, and lists, purpose of the site, features provided
+- Describe images using the pattern: "This is an image of ...", if no alt text is present infer the meaning and describe from the link or base64 if given
+- Provide helpful video context using captions or inferred meaning
+- The information about any graphic, or any text block on the page should not be not defined or ambiguous. For each provide the context or inference if not exact meaning
+- Return clean and complete JSON in this exact format:
 
-Here is structured webpage content in sections. For each numbered section, return a simplified version.
-Respond ONLY as a JSON object in this format exactly (no other text):
 {
-  "chunk1-1": "Simplified text here",
-  "chunk1-2": "Simplified text here",
+  "chunk1-1": "Simplified version of section 1",
+  "chunk1-2": "Simplified version of section 2"
 }
 
-Content:
+
+IMPORTANT FORMATTING RULES:
+- DO NOT use Markdown (*, -, **, _, etc.).
+- Return clean, plain text only.
+- Use line breaks or numbered lists only if needed.
+- Avoid styling markers like "**bold**" or "_italics_".
+
+Strictly adhere to the above instructions. DO NOT RETURN MARKDOWN. DO NOT add explanations. 
+Return Only the JSON.
+
+Webpage Content:
 ${contentLines.join('\n\n')}
 `.trim();
 }
