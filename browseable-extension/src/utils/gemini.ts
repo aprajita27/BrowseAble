@@ -1,21 +1,54 @@
 // gemini.ts
 
-// Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message: any, _: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
-    if (message.type === 'processDataWithGemini') {
-      const fullData = message.fullData;  // The full layout data sent by the background script
+// src/utils/gemini.ts
+
+export function processData(fullData: any) {
+    console.log('Processing data in gemini.ts:');
+    console.log(fullData);
+    
+    // Process the data and return in the format content.js expects
+    return {
+      layoutChanges: [
+        // Example layout changes based on your data
+        { 
+          elementSelector: '.some-element', 
+          layout: { display: 'flex', justifyContent: 'center' } 
+        }
+      ],
+      styleChanges: [
+        // Example style changes
+        { 
+          elementSelector: '.some-element', 
+          styles: { color: 'blue', fontSize: '16px' } 
+        }
+      ],
+      elementChanges: [
+        // Example content changes
+        { 
+          elementSelector: '.some-element', 
+          type: 'paragraph', 
+          text: 'Updated text content' 
+        }
+      ]
+    };
+  }
+
+// // Listen for messages from the background script
+// chrome.runtime.onMessage.addListener((message: any, _: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+//     if (message.type === 'processDataWithGemini') {
+//       const fullData = message.fullData;  // The full layout data sent by the background script
   
-      // Log the received data to the console
-      console.log('Received full data from background.js:');
-      console.log(fullData);  // Display the full data
+//       // Log the received data to the console
+//       console.log('Received full data from background.js:');
+//       console.log(fullData);  // Display the full data
   
-      // Optionally, send a response back to background.js (acknowledge reception)
-      sendResponse({ status: 'success', message: 'Data received and logged to console.' });
+//       // Optionally, send a response back to background.js (acknowledge reception)
+//       sendResponse({ status: 'success', message: 'Data received and logged to console.' });
   
-      // Return true to indicate that the response is sent asynchronously
-      return;
-    }
-  });
+//       // Return true to indicate that the response is sent asynchronously
+//       return;
+//     }
+//   });
 
 
 // function sendDataToGemini(data: any): Promise<any> {
