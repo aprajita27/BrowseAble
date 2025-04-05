@@ -1,0 +1,68 @@
+.insight-generator-container {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.input-container {
+    margin-bottom: 20px;
+}
+
+.prompt-input {
+    width: 100%;
+    padding: 10px;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.error-message {
+    color: red;
+}
+
+.insights-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.activity-card {
+    border: 1px solid #ccc;
+    padding: 20px;
+    width: 45%;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.activity-card h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.activity-card img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.activity-card p {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.activity-card a {
+    font-size: 16px;
+    color: #007BFF;
+    text-decoration: none;
+}
+
+.activity-card a:hover {
+    text-decoration: underline;
+}

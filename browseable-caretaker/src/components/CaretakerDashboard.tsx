@@ -7,6 +7,8 @@ import { getDocs, collection, query, where, updateDoc, arrayUnion, doc, getDoc }
 import { db } from '../firebase/firebaseConfig';
 import { useState } from 'react';
 import './CaretakerDashboard.css';
+import InsightGenerator from '../components/InsightGenerator';
+
 
 export default function CaretakerDashboard() {
     const navigate = useNavigate();
@@ -15,6 +17,8 @@ export default function CaretakerDashboard() {
         signOut(auth).then(() => navigate('/'));
     };
     const [linkEmail, setLinkEmail] = useState('');
+    const [selectedMode, setSelectedMode] = useState<string | null>(null);
+
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
 
@@ -145,21 +149,34 @@ export default function CaretakerDashboard() {
     };
 
     const toggleUserMode = async (key: string) => {
-        const updated = { ...userModes, [key]: !userModes[key] };
-        setUserModes(updated);
-
+        // Create a new userModes object where all modes are deselected
+        const updatedModes = Object.keys(userModes).reduce((acc, mode) => {
+            acc[mode] = false; // Deselect all modes
+            return acc;
+        }, {});
+    
+        // Select the clicked mode
+        updatedModes[key] = true;
+    
+        // Set the state for modes and selectedMode
+        setUserModes(updatedModes);
+        setSelectedMode(key); // Set the selected mode
+    
+        // Update user data in the database
         try {
             const q = query(collection(db, "users"), where("email", "==", selectedUser));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const userDoc = snapshot.docs[0];
                 const userRef = doc(db, "users", userDoc.id);
-                await updateDoc(userRef, { modes: updated });
+                await updateDoc(userRef, { modes: updatedModes });
             }
         } catch (err) {
             console.error("Error updating user modes:", err);
         }
     };
+    
+    
 
     return (
         <div className="dashboard-container">
@@ -319,7 +336,9 @@ export default function CaretakerDashboard() {
                                 </div>
                             </div>
                         </div>
+                        <InsightGenerator disorder={selectedMode} />
                     </div>
+                    
                 )}
             </div>
         </div>
