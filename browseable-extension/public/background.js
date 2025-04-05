@@ -4,6 +4,7 @@ let fullData = [];
 let totalChunksExpected = 0;
 let chunksReceived = 0;
 let activeNeurotype = 'adhd'; // Default neurotype setting
+let features = {}; // Global features variable to store user preferences
 
 // ================ GEMINI FUNCTIONALITY ================
 // Neurotype prompt styles from gemini.ts
@@ -438,17 +439,24 @@ function transformToLayoutChanges(adaptedContent, originalData) {
 
 // ================ MESSAGE HANDLERS ================
 
-// Listen for popup or settings changes to update the neurotype
+// Combine the duplicate message listeners into a single one
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle neurotype updates
   if (message.type === 'updateNeurotype') {
     activeNeurotype = message.neurotype;
+    console.log('Neurotype updated:', activeNeurotype);
     sendResponse({ status: 'neurotype_updated' });
     return true;
   }
-});
 
-// Handle content script messages
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle features updates
+  if (message.type === 'updateFeatures') {
+    features = message.features; // Update global features variable
+    console.log('Features updated:', features);
+    sendResponse({ status: 'features_updated' });
+    return true;
+  }
+
   // Handle the "sendChunk" type message
   if (message.type === 'sendChunk') {
     const chunkData = message.chunk;
@@ -465,7 +473,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('All chunks received. Processing with Gemini API.');
 
       // Process the data with the real Gemini API
-      // Note: We need to handle the async function differently
       processData(fullData)
         .then(processedData => {
           // Send the processed data to the content script
@@ -491,8 +498,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     sendResponse({ status: 'chunk_received', message: `Chunk ${chunksReceived} received.` });
-    return true; // Keep the message channel open for async response
+    return true;
   }
 
-  return true; // Always return true to keep message channel open
+  return true; // Keep the message channel open for the async response
 });

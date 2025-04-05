@@ -19,11 +19,11 @@ export default function Popup() {
   const [featureList, setFeatureList] = useState<Record<string, string>>({});
   const [modeList, setModeList] = useState<Record<string, string>>({});
   const [selectedModes, setSelectedModes] = useState<Record<string, boolean>>({});
+  const [selectedMode, setSelectedMode] = useState<string>('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const [wantsCaretaker, setWantsCaretaker] = useState(false);
-  // Add this new state along with your other state declarations at the top:
   const [userWantsCaretaker, setUserWantsCaretaker] = useState(false);
 
   const fetchModesAndFeatures = async () => {
@@ -41,7 +41,6 @@ export default function Popup() {
     setModeList(modeData);
   };
 
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -56,15 +55,30 @@ export default function Popup() {
             alert("You are a caretaker. Please use the caretaker web app.");
             signOut(auth);
           } else {
-            // Set the caretaker flag from the user's data
             setUserWantsCaretaker(!!data.wantsCaretaker);
             if (data.features) {
               setFeatures(data.features);
               chrome.storage.sync.set({ features: data.features });
+
+              // Send features to background script on load
+              chrome.runtime.sendMessage({
+                type: 'updateFeatures',
+                features: data.features
+              });
             }
             if (data.modes) {
               setSelectedModes(data.modes);
               chrome.storage.sync.set({ modes: data.modes });
+            }
+            if (data.selectedMode) {
+              setSelectedMode(data.selectedMode);
+              chrome.storage.sync.set({ neurotype: data.selectedMode });
+
+              // Send selected mode to background script on load
+              chrome.runtime.sendMessage({
+                type: 'updateNeurotype',
+                neurotype: data.selectedMode
+              });
             }
             await fetchModesAndFeatures();
           }
@@ -81,29 +95,25 @@ export default function Popup() {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCred.user.uid;
 
-      // Fetch available features and set all to false
       const featureSnap = await getDocs(collection(db, "features"));
       const featuresInit: Record<string, boolean> = {};
       featureSnap.forEach(doc => {
         featuresInit[doc.id] = false;
       });
 
-      // Fetch available modes and set all to false
       const modeSnap = await getDocs(collection(db, "modes"));
       const modesInit: Record<string, boolean> = {};
       modeSnap.forEach(doc => {
         modesInit[doc.id] = false;
       });
 
-      // Store user profile data in Firestore with all fields
       await setDoc(doc(db, "users", uid), {
         role: "user",
         email,
         firstName,
         lastName,
-        wantsCaretaker,  // this will be true or false based on the radio selection
-        features: featuresInit,
-        modes: modesInit
+        wantsCaretaker,
+        features: featuresInit
       });
     } catch (err) {
       if (err instanceof Error) {
@@ -112,7 +122,7 @@ export default function Popup() {
         alert("An unknown error occurred.");
       }
     }
-  };;
+  };
 
   const handleLogin = async () => {
     try {
@@ -135,6 +145,12 @@ export default function Popup() {
     setFeatures(updated);
     chrome.storage.sync.set({ features: updated });
 
+    // Send updated features to background script
+    chrome.runtime.sendMessage({
+      type: 'updateFeatures',
+      features: updated
+    });
+
     const user = auth.currentUser;
     if (user) {
       const docRef = doc(db, "users", user.uid);
@@ -143,14 +159,26 @@ export default function Popup() {
   };
 
   const toggleMode = async (key: string) => {
-    const updated = { ...selectedModes, [key]: !selectedModes[key] };
-    setSelectedModes(updated);
-    chrome.storage.sync.set({ modes: updated });
+    // Update the selected mode immediately for UI feedback
+    setSelectedMode(key);
 
+    // Also update the selectedModes object if needed elsewhere
+    setSelectedModes({ [key]: true });
+
+    // Store just the mode key in storage
+    chrome.storage.sync.set({ neurotype: key });
+
+    // Send message to background script
+    chrome.runtime.sendMessage({
+      type: 'updateNeurotype',
+      neurotype: key
+    });
+
+    // Update user document in Firestore
     const user = auth.currentUser;
     if (user) {
       const docRef = doc(db, "users", user.uid);
-      await setDoc(docRef, { modes: updated }, { merge: true });
+      await setDoc(docRef, { selectedMode: key }, { merge: true });
     }
   };
 
@@ -231,7 +259,6 @@ export default function Popup() {
     );
   }
 
-  // If the user wants a caretaker, do not show the feature/mode controls.
   if (userWantsCaretaker) {
     return (
       <div style={{ padding: '1rem' }}>
@@ -244,7 +271,6 @@ export default function Popup() {
     );
   }
 
-  // Otherwise, show the feature and mode controls.
   return (
     <div className="container">
       <h2 className="heading">✨ Welcome to BrowseAble ✨</h2>
@@ -256,17 +282,20 @@ export default function Popup() {
       ) : (
         <>
           <div>
-            <h4 className="section-title">🧠 Select Your Modes:</h4>
-            {Object.entries(modeList).map(([key, label]) => (
-              <label key={key} className="checkbox-group">
-                <input
-                  type="checkbox"
-                  checked={!!selectedModes[key]}
-                  onChange={() => toggleMode(key)}
-                />
-                {label}
-              </label>
-            ))}
+            <h4 className="section-title">🧠 Select Your Mode:</h4>
+            <div className="radio-options-container">
+              {Object.entries(modeList).map(([key, label]) => (
+                <label key={key} className="radio-group">
+                  <input
+                    type="radio"
+                    name="neurotype"
+                    checked={selectedMode === key}
+                    onChange={() => toggleMode(key)}
+                  />
+                  <span className="radio-label">{label}</span>
+                </label>
+              ))}
+            </div>
           </div>
 
           <div>
