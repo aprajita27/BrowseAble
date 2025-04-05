@@ -23,5 +23,5 @@
     "noUncheckedSideEffectImports": true,
     "types": ["chrome"]
   },
-  "include": ["src", "public/background.ts", "public/content.ts"]
+  "include": ["src", "public/background.ts", "public/content.ts", "public/content.js"]
 }
