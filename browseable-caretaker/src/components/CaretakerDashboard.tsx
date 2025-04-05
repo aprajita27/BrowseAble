@@ -44,21 +44,43 @@ export default function CaretakerDashboard() {
             setSelectedUser(null);
             setUserFeatures({});
             setUserModes({});
+            setSelectedMode(null);
             return;
         }
 
         setSelectedUser(email);
         setUserFeatures({});
         setUserModes({});
+        setSelectedMode(null);
 
         try {
+            // Fetch user data
             const q = query(collection(db, "users"), where("email", "==", email));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const userDoc = snapshot.docs[0];
                 const data = userDoc.data();
                 setUserFeatures(data.features || {});
-                setUserModes(data.modes || {});
+                setSelectedMode(data.selectedMode || null);
+
+                // Now fetch available modes from the "modes" collection
+                const modesCollectionRef = collection(db, "modes");
+                const modesSnapshot = await getDocs(modesCollectionRef);
+
+                // Create a modes object to display all available modes
+                const availableModes: Record<string, boolean> = {};
+                const newModeLabels: Record<string, string> = {};
+
+                modesSnapshot.forEach((modeDoc) => {
+                    const modeData = modeDoc.data();
+                    availableModes[modeDoc.id] = data.selectedMode === modeDoc.id;
+                    if (modeData.label) {
+                        newModeLabels[modeDoc.id] = modeData.label;
+                    }
+                });
+
+                setUserModes(availableModes);
+                setModeLabels(newModeLabels);
             }
         } catch (err) {
             console.error("Error fetching user data:", err);
@@ -149,34 +171,37 @@ export default function CaretakerDashboard() {
     };
 
     const toggleUserMode = async (key: string) => {
-        // Create a new userModes object where all modes are deselected
-        const updatedModes = Object.keys(userModes).reduce((acc, mode) => {
-            acc[mode] = false; // Deselect all modes
-            return acc;
-        }, {});
-    
-        // Select the clicked mode
-        updatedModes[key] = true;
-    
-        // Set the state for modes and selectedMode
-        setUserModes(updatedModes);
-        setSelectedMode(key); // Set the selected mode
-    
-        // Update user data in the database
         try {
+            // Get all available modes from the modes collection
+            const modesCollectionRef = collection(db, "modes");
+            const modesSnapshot = await getDocs(modesCollectionRef);
+
+            // Create a new userModes object where all modes reflect selection state
+            const updatedModes: Record<string, boolean> = {};
+
+            // Set all modes based on whether they match the selected key
+            modesSnapshot.forEach((modeDoc) => {
+                updatedModes[modeDoc.id] = modeDoc.id === key;
+            });
+
+            // Update the UI state
+            setUserModes(updatedModes);
+            setSelectedMode(key);
+
+            // Update user data in the database - only store the selected mode
             const q = query(collection(db, "users"), where("email", "==", selectedUser));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const userDoc = snapshot.docs[0];
                 const userRef = doc(db, "users", userDoc.id);
-                await updateDoc(userRef, { modes: updatedModes });
+                await updateDoc(userRef, {
+                    selectedMode: key  // Only store the selected mode key
+                });
             }
         } catch (err) {
-            console.error("Error updating user modes:", err);
+            console.error("Error updating user mode:", err);
         }
     };
-    
-    
 
     return (
         <div className="dashboard-container">
@@ -338,7 +363,7 @@ export default function CaretakerDashboard() {
                         </div>
                         <InsightGenerator disorder={selectedMode} />
                     </div>
-                    
+
                 )}
             </div>
         </div>
