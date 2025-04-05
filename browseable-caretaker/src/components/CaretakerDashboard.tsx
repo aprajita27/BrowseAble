@@ -7,6 +7,8 @@ import { getDocs, collection, query, where, updateDoc, arrayUnion, doc, getDoc }
 import { db } from '../firebase/firebaseConfig';
 import { useState } from 'react';
 import './CaretakerDashboard.css';
+import InsightGenerator from '../components/InsightGenerator';
+
 
 export default function CaretakerDashboard() {
     const navigate = useNavigate();
@@ -15,6 +17,8 @@ export default function CaretakerDashboard() {
         signOut(auth).then(() => navigate('/'));
     };
     const [linkEmail, setLinkEmail] = useState('');
+    const [selectedMode, setSelectedMode] = useState<string | null>(null);
+
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
 
@@ -40,21 +44,43 @@ export default function CaretakerDashboard() {
             setSelectedUser(null);
             setUserFeatures({});
             setUserModes({});
+            setSelectedMode(null);
             return;
         }
 
         setSelectedUser(email);
         setUserFeatures({});
         setUserModes({});
+        setSelectedMode(null);
 
         try {
+            // Fetch user data
             const q = query(collection(db, "users"), where("email", "==", email));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const userDoc = snapshot.docs[0];
                 const data = userDoc.data();
                 setUserFeatures(data.features || {});
-                setUserModes(data.modes || {});
+                setSelectedMode(data.selectedMode || null);
+
+                // Now fetch available modes from the "modes" collection
+                const modesCollectionRef = collection(db, "modes");
+                const modesSnapshot = await getDocs(modesCollectionRef);
+
+                // Create a modes object to display all available modes
+                const availableModes: Record<string, boolean> = {};
+                const newModeLabels: Record<string, string> = {};
+
+                modesSnapshot.forEach((modeDoc) => {
+                    const modeData = modeDoc.data();
+                    availableModes[modeDoc.id] = data.selectedMode === modeDoc.id;
+                    if (modeData.label) {
+                        newModeLabels[modeDoc.id] = modeData.label;
+                    }
+                });
+
+                setUserModes(availableModes);
+                setModeLabels(newModeLabels);
             }
         } catch (err) {
             console.error("Error fetching user data:", err);
@@ -145,19 +171,35 @@ export default function CaretakerDashboard() {
     };
 
     const toggleUserMode = async (key: string) => {
-        const updated = { ...userModes, [key]: !userModes[key] };
-        setUserModes(updated);
-
         try {
+            // Get all available modes from the modes collection
+            const modesCollectionRef = collection(db, "modes");
+            const modesSnapshot = await getDocs(modesCollectionRef);
+
+            // Create a new userModes object where all modes reflect selection state
+            const updatedModes: Record<string, boolean> = {};
+
+            // Set all modes based on whether they match the selected key
+            modesSnapshot.forEach((modeDoc) => {
+                updatedModes[modeDoc.id] = modeDoc.id === key;
+            });
+
+            // Update the UI state
+            setUserModes(updatedModes);
+            setSelectedMode(key);
+
+            // Update user data in the database - only store the selected mode
             const q = query(collection(db, "users"), where("email", "==", selectedUser));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
                 const userDoc = snapshot.docs[0];
                 const userRef = doc(db, "users", userDoc.id);
-                await updateDoc(userRef, { modes: updated });
+                await updateDoc(userRef, {
+                    selectedMode: key  // Only store the selected mode key
+                });
             }
         } catch (err) {
-            console.error("Error updating user modes:", err);
+            console.error("Error updating user mode:", err);
         }
     };
 
@@ -297,29 +339,9 @@ export default function CaretakerDashboard() {
                         </div>
                         <div className="section-divider"></div>
 
-                        <div className="content-section">
-                            <div className="section-header">
-                                <h2>Activity 1</h2>
-                            </div>
-                            <div className="data-grid">
-                                <div className="data-card">
-                                    <h4>Insights</h4>
-                                </div>
-                                {/* More data cards */}
-                            </div>
-                        </div>
-
-                        <div className="content-section">
-                            <div className="section-header">
-                                <h2>Activity 2</h2>
-                            </div>
-                            <div className="section-content">
-                                <div className="activity-feed">
-                                    {/* Activity items */}
-                                </div>
-                            </div>
-                        </div>
+                        <InsightGenerator disorder={selectedMode} />
                     </div>
+
                 )}
             </div>
         </div>
