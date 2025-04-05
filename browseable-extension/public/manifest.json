@@ -10,8 +10,7 @@
       "default_icon": "icons/default_icon.png"
     },
     "background": {
-      "service_worker": "background.js",
-      "type": "module"
+      "service_worker": "background.js"
     },
     "content_scripts": [
       {
@@ -20,5 +19,4 @@
         "run_at": "document_end"
       }
     ]
-  }
-  
+}
