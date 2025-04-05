@@ -22,12 +22,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             chrome.runtime.sendMessage({
                 type: 'processDataWithGemini',
                 fullData: fullData,
-            },  (response) => {
-                if (response) {
-                    console.log('Response from gemini.ts:', response);
-                } else {
-                    console.error('No response received or message was not sent successfully');
-                }
+            }, (response) => {
+                // Print the response received from gemini.ts
+                console.log('Response from gemini.ts:', response);
             });
 
             // Reset for next chunk set

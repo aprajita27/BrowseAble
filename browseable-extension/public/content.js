@@ -282,40 +282,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   });
   
-  function applyLayoutChanges(modifiedLayout) {
-    // For layout changes
-    console.log("processed data:", modifiedLayout);
-    modifiedLayout.layoutChanges.forEach(item => {
-      const element = document.querySelector(item.elementSelector);
-      if (element) {
-        Object.keys(item.layout).forEach(style => {
-          element.style[style] = item.layout[style];  // Apply layout styles
-        });
+function applyLayoutChanges(modifiedLayout) {
+  // For layout changes
+  modifiedLayout.layoutChanges.forEach(item => {
+    const element = document.querySelector(item.elementSelector);
+    if (element) {
+      Object.keys(item.layout).forEach(style => {
+        element.style[style] = item.layout[style];  // Apply layout styles
+      });
+    }
+  });
+
+  // For style changes
+  modifiedLayout.styleChanges.forEach(item => {
+    const element = document.querySelector(item.elementSelector);
+    if (element) {
+      Object.keys(item.styles).forEach(style => {
+        element.style[style] = item.styles[style];  // Apply styles
+      });
+    }
+  });
+
+  // For element content changes (text/images)
+  modifiedLayout.elementChanges.forEach(item => {
+    const element = document.querySelector(item.elementSelector);
+    if (element) {
+      if (item.type === 'image') {
+        element.src = item.src;
+        element.alt = item.alt;
+      } else if (item.type === 'heading' || item.type === 'paragraph') {
+        element.innerHTML = item.text;
       }
-    });
-  
-    // For style changes
-    modifiedLayout.styleChanges.forEach(item => {
-      const element = document.querySelector(item.elementSelector);
-      if (element) {
-        Object.keys(item.styles).forEach(style => {
-          element.style[style] = item.styles[style];  // Apply styles
-        });
-      }
-    });
-  
-    // For element content changes (text/images)
-    modifiedLayout.elementChanges.forEach(item => {
-      const element = document.querySelector(item.elementSelector);
-      if (element) {
-        if (item.type === 'image') {
-          element.src = item.src;
-          element.alt = item.alt;
-        } else if (item.type === 'heading' || item.type === 'paragraph') {
-          element.innerHTML = item.text;
-        }
-      }
-    });
-  }
-  
+    }
+  });
+}
+
   
