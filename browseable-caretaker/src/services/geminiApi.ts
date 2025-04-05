@@ -12,7 +12,7 @@ A detailed description of the activity.
 
 A specific, useful website link that could help someone to perform this activity 
 
-An image suggestion with a link to an image from a site like Unsplash or Pexels, where the image is related to the activity.
+A working png image URL from a site like Unsplash or Pexels, where the image is related to the activity.
 
 Additionally, suggest two random activities that might help someone with ${disorder}. For each of these random activities, include:
 
@@ -20,7 +20,10 @@ A detailed description.
 
 A specific, useful website link that could help someone to perform this activity
 
-An image suggestion with a link to an image from a site like Unsplash or Pexels, where the image is related to the activity.
+A working png image URL from a site like Unsplash or Pexels, where the image is related to the activity.
+Both in the format: Description:
+Image:
+Website:
     `;
     
     // If the caretaker comment is provided, append it to the prompt
@@ -29,6 +32,8 @@ An image suggestion with a link to an image from a site like Unsplash or Pexels,
     } else {
         console.log("No caretaker comment provided, using basic suggestion format.");
     }
+
+    finalPrompt += `\nPlease respond in plain text, no markdown.`;
 
     console.log("Generated final prompt:", finalPrompt); // Debugging: Check the final prompt before API call
 

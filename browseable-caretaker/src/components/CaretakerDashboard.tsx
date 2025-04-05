@@ -339,28 +339,6 @@ export default function CaretakerDashboard() {
                         </div>
                         <div className="section-divider"></div>
 
-                        <div className="content-section">
-                            <div className="section-header">
-                                <h2>Activity 1</h2>
-                            </div>
-                            <div className="data-grid">
-                                <div className="data-card">
-                                    <h4>Insights</h4>
-                                </div>
-                                {/* More data cards */}
-                            </div>
-                        </div>
-
-                        <div className="content-section">
-                            <div className="section-header">
-                                <h2>Activity 2</h2>
-                            </div>
-                            <div className="section-content">
-                                <div className="activity-feed">
-                                    {/* Activity items */}
-                                </div>
-                            </div>
-                        </div>
                         <InsightGenerator disorder={selectedMode} />
                     </div>
 

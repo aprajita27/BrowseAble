@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { generateInsights } from '../services/geminiApi'; // Import the service
+import { marked } from 'marked';
+import './InsightGenerator.css'; // Add this line at the top of the file
+
+
 
 interface Activity {
     title: string;         // Title of the activity
@@ -21,28 +25,51 @@ const InsightGenerator: React.FC<InsightGeneratorProps> = ({ disorder }) => {
     const handleGenerateInsights = async () => {
         setLoading(true);
         setError(null);
-
+    
         try {
             const result = await generateInsights(prompt, disorder);
-            console.log("Generated Insights:", result); // Log the result from Gemini API
+        console.log("Raw Generated Insights:", result); // Log the raw result from Gemini API
 
-            // Assuming result is an array of activities
-            // Map the response to activity data
-            const activitiesData: Activity[] = result.map((activity: any) => ({
-                title: activity.title,
-                description: activity.description,
-                imageUrl: activity.imageUrl,
-                websiteLink: activity.websiteLink
-            }));
+        const rawInsights = result.split('\n'); // Split raw text by newline character
+const activitiesList = [];
 
-            setActivities(activitiesData); // Set the activities to the state
+let currentActivity = { title: '', description: '', websiteLink: '', imageUrl: '' };
 
-        } catch (error: any) {
-            setError(error.message); // Set the error state with the error message
-        } finally {
-            setLoading(false);
+rawInsights.forEach((line, index) => {
+    if (line.startsWith('Daily Routine Activity') || line.startsWith('Random Activity')) {
+        // Push previous activity before starting new one
+        if (currentActivity.title && currentActivity.description) {
+            activitiesList.push(currentActivity);
         }
-    };
+
+        // Reset the current activity
+        currentActivity = { title: '', description: '', websiteLink: '', imageUrl: '' };
+        currentActivity.title = line.trim(); // Set the title (activity name)
+    } else if (line.startsWith('Description:')) {
+        currentActivity.description = line.replace('Description: ', '').trim(); // Set the description
+    } else if (line.startsWith('Website:')) {
+        currentActivity.websiteLink = line.replace('Website: ', '').trim(); // Set the website link
+    } else if (line.startsWith('Image:')) {
+        currentActivity.imageUrl = line.replace('Image: ', '').trim(); // Set image suggestion
+    }
+});
+
+// Don't forget to push the last activity if it exists
+if (currentActivity.title && currentActivity.description) {
+    activitiesList.push(currentActivity);
+}
+
+console.log("Final Activities List: ", activitiesList);
+
+        setActivities(activitiesList); // Set the activities in state
+
+    } catch (error: any) {
+        setError(error.message); // Set the error state with the error message
+        console.error("Error occurred while generating insights:", error); // Log any error
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className="insight-generator-container">
@@ -68,13 +95,25 @@ const InsightGenerator: React.FC<InsightGeneratorProps> = ({ disorder }) => {
                 ) : (
                     activities.map((activity, index) => (
                         <div key={index} className="activity-card">
-                            {/* Activity Card */}
                             <h3>{activity.title}</h3>
-                            <img src={activity.imageUrl} alt={activity.title} className="activity-image" />
-                            <p>{activity.description}</p>
-                            <a href={activity.websiteLink} target="_blank" rel="noopener noreferrer">
-                                Learn more
-                            </a>
+                            {activity.imageUrl && (
+                                <img
+                                    src={activity.imageUrl}
+                                    alt={activity.title}
+                                    className="activity-image"
+                                />
+                            )}
+                            {activity.description && <p>{activity.description}</p>}
+                            {activity.websiteLink && (
+                                <a
+                                    href={activity.websiteLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="activity-link"
+                                >
+                                    Learn more
+                                </a>
+                            )}
                         </div>
                     ))
                 )}

@@ -1,68 +1,138 @@
+/* General container for the insight generator */
 .insight-generator-container {
-    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
     padding: 20px;
+    border-radius: 8px;
     max-width: 800px;
     margin: 0 auto;
-}
-
-.input-container {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Header style */
+  h2 {
+    font-size: 1.8rem;
+    color: #333;
+    text-align: center;
     margin-bottom: 20px;
-}
-
-.prompt-input {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    margin-bottom: 10px;
-}
-
-button {
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-.error-message {
-    color: red;
-}
-
-.insights-container {
+  }
+  
+  /* Textarea and button container */
+  .input-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.activity-card {
-    border: 1px solid #ccc;
-    padding: 20px;
-    width: 45%;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-}
-
-.activity-card h3 {
-    font-size: 20px;
-    margin-bottom: 10px;
-}
-
-.activity-card img {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  /* Textarea for entering the prompt */
+  .prompt-input {
     width: 100%;
-    height: auto;
+    padding: 12px;
+    font-size: 1rem;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    resize: none;
+    box-sizing: border-box;
+    min-height: 100px;
+    max-height: 150px;
+    transition: border-color 0.3s ease;
+  }
+  
+  .prompt-input:focus {
+    border-color: #4A90E2;
+    outline: none;
+  }
+  
+  /* Button style */
+  button {
+    padding: 12px;
+    background-color: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  button:disabled {
+    background-color: #ddd;
+    cursor: not-allowed;
+  }
+  
+  button:hover:enabled {
+    background-color: #357ABD;
+  }
+  
+  /* Error message */
+  .error-message {
+    color: red;
+    font-size: 1rem;
+    margin-top: 10px;
+    text-align: center;
+  }
+  
+  /* Insights container (the list of activities) */
+  .insights-container {
+    margin-top: 30px;
+  }
+  
+  /* Activity card style */
+  .activity-card {
+    background-color: white;
+    padding: 20px;
+    margin-bottom: 20px;
     border-radius: 8px;
-    margin-bottom: 10px;
-}
-
-.activity-card p {
-    font-size: 16px;
-    margin-bottom: 10px;
-}
-
-.activity-card a {
-    font-size: 16px;
-    color: #007BFF;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .activity-card h3 {
+    font-size: 1.6rem;
+    color: #333;
+    margin-bottom: 15px;
+  }
+  
+  /* Image inside activity card */
+  .activity-image {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 15px;
+  }
+  
+  /* Description text inside activity card */
+  .activity-card p {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 15px;
+  }
+  
+  /* Learn more link */
+  .activity-card a {
+    font-size: 1rem;
+    color: #4A90E2;
     text-decoration: none;
-}
-
-.activity-card a:hover {
+    font-weight: 500;
+  }
+  
+  .activity-card a:hover {
     text-decoration: underline;
-}
+  }
+  
+  /* Loading and empty state styles */
+  .loading-spinner {
+    display: block;
+    margin: 30px auto;
+    text-align: center;
+    font-size: 1.5rem;
+    color: #4A90E2;
+  }
+  
+  .no-activities {
+    font-size: 1.2rem;
+    color: #888;
+    text-align: center;
+    margin-top: 20px;
+  }
+  
+  
