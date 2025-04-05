@@ -167,44 +167,154 @@ function chunkLayout(layout, tokenLimit = 1500) {
   }
   
 
-// Function to save content data (now handling multiple chunks)
-function saveContentToFile(data, filename = "page-structure.json") {
-  console.log("Saving structured layout to file...");
+//   // Function to send layout data to gemini.js (via postMessage or a direct function call)
+// function sendLayoutToGemini(layoutData) {
+//     // Assuming gemini.js is part of the same page, and gemini.updateLayout exists
+//     if (window.gemini && typeof window.gemini.updateLayout === 'function') {
+//       window.gemini.updateLayout(layoutData);  // Pass the layout data to gemini.js
+//     } else {
+//       console.log("Gemini.js is not available or updateLayout function is missing.");
+//     }
+//   }
 
-  const chunks = chunkLayout(data.layout);  // Chunking the content into smaller sections
+// // Function to save content data (now handling multiple chunks)
+// function saveContentToFile(data, filename = "page-structure.json") {
+//   console.log("Saving structured layout to file...");
 
-  // Save the chunks into a single JSON file
-  const finalData = chunks.map(chunk => chunk);
+//   const chunks = chunkLayout(data.layout);  // Chunking the content into smaller sections
 
-  const blob = new Blob([JSON.stringify(finalData, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+//   // Save the chunks into a single JSON file
+//   const finalData = chunks.map(chunk => chunk);
+//   sendLayoutToGemini(finalData); 
 
-// Main function to run on page load
-const onPageLoad = function () {
-  console.log("DOM fully loaded or already loaded");
+//   const blob = new Blob([JSON.stringify(finalData, null, 2)], { type: 'application/json' });
+//   const url = URL.createObjectURL(blob);
+//   const a = document.createElement('a');
+//   a.href = url;
+//   a.download = filename;
+//   a.click();
+//   URL.revokeObjectURL(url);
+// }
 
-  const structuredData = extractPageLayout();
-  console.log("Extracted structured layout:", structuredData);
+// // Main function to run on page load
+// const onPageLoad = function () {
+//   console.log("DOM fully loaded or already loaded");
 
-  saveContentToFile(structuredData);
+//   const structuredData = extractPageLayout();
+//   console.log("Extracted structured layout:", structuredData);
 
-  chrome.runtime?.sendMessage?.(
-    { type: 'saveContent', data: structuredData },
-    (response) => {
-      console.log("Got response from background:", response);
+//   saveContentToFile(structuredData);
+
+//   chrome.runtime?.sendMessage?.(
+//     { type: 'saveContent', data: structuredData },
+//     (response) => {
+//       console.log("Got response from background:", response);
+//     }
+//   );
+// };
+
+// // Trigger when the DOM is loaded
+// if (document.readyState === 'loading') {
+//   document.addEventListener('DOMContentLoaded', onPageLoad);
+// } else {
+//   onPageLoad();
+// }
+
+
+
+
+// Function to send layout data to gemini.js via chrome.runtime
+function sendChunkToGemini(chunkData, chunkIndex, totalChunksExpected) {
+    console.log(`Sending chunk ${chunkIndex} of ${totalChunksExpected}`);  // Add this to debug
+    chrome.runtime.sendMessage({
+      type: 'sendChunk',
+      chunk: chunkData,
+      totalChunksExpected: totalChunksExpected
+    }, (response) => {
+      console.log(`Response for chunk ${chunkIndex}:`, response);
+    });
+  }
+  
+  
+  // Main function to run on page load
+  const onPageLoad = function () {
+    console.log("DOM fully loaded or already loaded");
+  
+    const structuredData = extractPageLayout();
+    console.log("Extracted structured layout:", structuredData);
+  
+    const chunks = chunkLayout(structuredData.layout);  // Chunking the content into smaller sections
+  
+    const totalChunks = chunks.length;  // Get the total number of chunks
+  
+    // Loop through each chunk and send it to Gemini
+    chunks.forEach((chunk, index) => {
+      const chunkIndex = index+1;  // Index starts at 0, but you want it to start at 1
+      sendChunkToGemini(chunk, chunkIndex, totalChunks);
+    });
+  
+    chrome.runtime?.sendMessage?.(
+      { type: 'saveContent', data: structuredData },
+      (response) => {
+        console.log("Got response from background:", response);
+      }
+    );
+  };
+  
+  // Trigger when the DOM is loaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', onPageLoad);
+  } else {
+    onPageLoad();
+  }
+
+
+  // content.js
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'gemini_data') {
+      console.log('Received processed data in content.js:', message.payload);
+  
+      // Apply the changes to the page (layout, content, etc.)
+      applyLayoutChanges(message.payload);
+  
+      sendResponse({ status: 'content_data_received' });
     }
-  );
-};
+  });
+  
+function applyLayoutChanges(modifiedLayout) {
+  // For layout changes
+  modifiedLayout.layoutChanges.forEach(item => {
+    const element = document.querySelector(item.elementSelector);
+    if (element) {
+      Object.keys(item.layout).forEach(style => {
+        element.style[style] = item.layout[style];  // Apply layout styles
+      });
+    }
+  });
 
-// Trigger when the DOM is loaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', onPageLoad);
-} else {
-  onPageLoad();
+  // For style changes
+  modifiedLayout.styleChanges.forEach(item => {
+    const element = document.querySelector(item.elementSelector);
+    if (element) {
+      Object.keys(item.styles).forEach(style => {
+        element.style[style] = item.styles[style];  // Apply styles
+      });
+    }
+  });
+
+  // For element content changes (text/images)
+  modifiedLayout.elementChanges.forEach(item => {
+    const element = document.querySelector(item.elementSelector);
+    if (element) {
+      if (item.type === 'image') {
+        element.src = item.src;
+        element.alt = item.alt;
+      } else if (item.type === 'heading' || item.type === 'paragraph') {
+        element.innerHTML = item.text;
+      }
+    }
+  });
 }
+
+  
