@@ -44,8 +44,29 @@ function getElementSelector(el) {
   return path.join(" > ");
 }
 
+//Helper funtions
+function convertImageToBase64(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const base64 = canvas.toDataURL("image/png");
+      resolve(base64);
+    };
+
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 // Function to extract the content of an element
-function extractContentFromElement(el) {
+async function extractContentFromElement(el) {
   const type = el.tagName.toLowerCase();
   const selector = getElementSelector(el);
   let content = { type: null, elementSelector: selector };
@@ -59,18 +80,41 @@ function extractContentFromElement(el) {
     content.text = el.innerText.trim();
   } else if (type === "img") {
     content.type = "image";
-    content.src = el.src;
+    content.src = el.src; // Always include src
     content.alt = el.alt || "";
+    
+    try {
+      const base64 = await convertImageToBase64(el.src);
+      if (base64) {
+        content.base64 = base64;
+      }
+    } catch (err) {
+      content.base64 = null; // handle canvas security/CORS issues
+    }
   } else if (type === "video") {
     content.type = "video";
     content.src = el.src || el.querySelector("source")?.src || "";
-    content.caption = el.getAttribute("aria-label") || "";
+
+    // Caption / accessibility metadata
+    content.caption = el.getAttribute("aria-label") 
+                  || el.getAttribute("title") 
+                  || el.querySelector("track[kind='descriptions']")?.textContent 
+                  || "";
+
+    // Fallback caption from filename
+    if (!content.caption && content.src) {
+      const parts = content.src.split("/");
+      const fileName = parts[parts.length - 1];
+      content.caption = `Video file: ${fileName}`;
+    }
+
+    content.hasVideo = true;
   } else if (type === "ul" || type === "ol") {
     content.type = "list";
     content.items = Array.from(el.querySelectorAll("li")).map(li => li.innerText.trim());
   } else {
     content.type = "unknown";
-    content.text = el.innerText.trim().slice(0, 200); // fallback preview
+    content.text = el.innerText.trim().slice(0, 200);
   }
 
   return content;
@@ -99,20 +143,20 @@ function countTokens(text) {
 }
 
 // Function to extract the page layout (structure)
-function extractPageLayout() {
+async function extractPageLayout() {
   const layout = [];
   const sections = document.querySelectorAll("main section, section, article, div");
 
-  sections.forEach(section => {
+  for (const section of sections) {
     const contentBlocks = [];
     const children = section.querySelectorAll("h1,h2,h3,h4,h5,h6,p,img,video,ul,ol");
 
-    children.forEach(child => {
-      const content = extractContentFromElement(child);
-      if (content && (content.text?.length > 0 || content.src)) {
+    for (const child of children) {
+      const content = await extractContentFromElement(child);
+      if (content && (content.text?.length > 0 || content.src || content.base64)) {
         contentBlocks.push(content);
       }
-    });
+    }
 
     if (contentBlocks.length > 0) {
       layout.push({
@@ -122,7 +166,7 @@ function extractPageLayout() {
         content: contentBlocks
       });
     }
-  });
+  }
 
   return {
     title: document.title,
@@ -197,19 +241,17 @@ function sendChunkToGemini(chunkData, chunkIndex, totalChunksExpected) {
 }
 
 // Main function to run on page load
-const onPageLoad = function () {
+const onPageLoad = async function () {
   console.log("DOM fully loaded or already loaded");
 
-  const structuredData = extractPageLayout();
+  const structuredData = await extractPageLayout();
   console.log("Extracted structured layout:", structuredData);
 
-  const chunks = chunkLayout(structuredData.layout);  // Chunking the content into smaller sections
+  const chunks = chunkLayout(structuredData.layout);
+  const totalChunks = chunks.length;
 
-  const totalChunks = chunks.length;  // Get the total number of chunks
-
-  // Loop through each chunk and send it to Gemini
   chunks.forEach((chunk, index) => {
-    const chunkIndex = index + 1;  // Index starts at 0, but you want it to start at 1
+    const chunkIndex = index + 1;
     sendChunkToGemini(chunk, chunkIndex, totalChunks);
   });
 
@@ -238,6 +280,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     applyLayoutChanges(message.payload);
 
     sendResponse({ status: 'content_data_received' });
+    return false;
   }
 });
 
@@ -450,6 +493,46 @@ function applyLayoutChanges(modifiedLayout) {
 
 // Modify the reprocessPage message handler
 
+// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+//   if (message.type === 'reprocessPage') {
+//     console.log(`Reprocessing page for neurotype: ${message.neurotype}`);
+
+//     // Update the active neurotype
+//     activeNeurotype = message.neurotype;
+
+//     // Show a processing notification
+//     const processingNotification = document.createElement('div');
+//     processingNotification.style.cssText = `
+//       position: fixed;
+//       top: 20px;
+//       left: 50%;
+//       transform: translateX(-50%);
+//       background-color: #4CAF50;
+//       color: white;
+//       padding: 10px 20px;
+//       border-radius: 5px;
+//       font-family: Arial, sans-serif;
+//       z-index: 10000;
+//       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+//     `;
+//     processingNotification.textContent = "🔄 BrowseAble: Adapting content...";
+//     document.body.appendChild(processingNotification);
+
+//     // Re-process the page
+//     setTimeout(() => {
+//       // Remove any existing overlay first
+//       const existingOverlay = document.getElementById('browseable-overlay');
+//       if (existingOverlay) {
+//         existingOverlay.remove();
+//       }
+
+//       onPageLoad();
+//       // Remove the notification after processing starts
+//       processingNotification.remove();
+//     }, 500);
+//   }
+// });
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'reprocessPage') {
     console.log(`Reprocessing page for neurotype: ${message.neurotype}`);
@@ -476,17 +559,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     document.body.appendChild(processingNotification);
 
     // Re-process the page
-    setTimeout(() => {
-      // Remove any existing overlay first
+    setTimeout(async () => {
       const existingOverlay = document.getElementById('browseable-overlay');
       if (existingOverlay) {
         existingOverlay.remove();
       }
 
-      onPageLoad();
-      // Remove the notification after processing starts
+      await onPageLoad(); // ensure async operation completes
       processingNotification.remove();
+      try {
+        sendResponse({ status: 'reprocess_complete' });
+      } catch (err) {
+        console.warn("sendResponse failed:", err);
+      }
     }, 500);
+
+    return true;
   }
 });
 
