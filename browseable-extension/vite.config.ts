@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { dirname, resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,15 +11,18 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
+
         popup: resolve(__dirname, 'index.html'),
       },
       output: {
         entryFileNames: `assets/[name].js`,
         chunkFileNames: `assets/[name].js`,
-        assetFileNames: `assets/[name].[ext]`
-      }
+        assetFileNames: `assets/[name].[ext]`,
+      },
     },
     outDir: 'dist',
-    emptyOutDir: true
-  }
-})
+    emptyOutDir: true,
+    assetsDir: 'assets',
+  },
+  publicDir: 'public',
+});
