@@ -352,43 +352,69 @@ function applyLayoutChanges(modifiedLayout) {
 
   // Collect all element changes
   if (modifiedLayout.elementChanges && modifiedLayout.elementChanges.length > 0) {
-    // Group by section to maintain document structure
-    const contentSections = {};
+    // Track unique content to avoid duplicates
+    const uniqueContent = new Set();
 
+    // First pass: collect headings and their texts
+    const headings = [];
     modifiedLayout.elementChanges.forEach(item => {
-      // Extract section path from selector (approximation)
-      const selectorParts = item.elementSelector.split('>');
-      const sectionPath = selectorParts.length > 1 ? selectorParts.slice(0, -1).join('>') : 'main';
-
-      if (!contentSections[sectionPath]) {
-        contentSections[sectionPath] = [];
-      }
-
-      contentSections[sectionPath].push(item);
-    });
-
-    // Render each section
-    Object.entries(contentSections).forEach(([sectionPath, items]) => {
-      const sectionDiv = document.createElement('div');
-      sectionDiv.className = 'browseable-section';
-      sectionDiv.style.marginBottom = '30px';
-
-      items.forEach(item => {
-        if (item.type === 'heading') {
-          const heading = document.createElement('h3');
-          heading.innerHTML = item.text;
-          heading.style.cssText = 'color: #2c3e50; margin: 25px 0 15px; font-weight: bold;';
-          sectionDiv.appendChild(heading);
-        } else if (item.type === 'paragraph') {
-          const paragraph = document.createElement('div');
-          paragraph.innerHTML = item.text;
-          paragraph.style.cssText = 'margin-bottom: 15px;';
-          sectionDiv.appendChild(paragraph);
+      if (item.type === 'heading') {
+        // Only add if we haven't seen this text before
+        const contentKey = item.text.substring(0, 50);
+        if (!uniqueContent.has(contentKey)) {
+          uniqueContent.add(contentKey);
+          headings.push(item);
         }
-      });
-
-      simplifiedContent.appendChild(sectionDiv);
+      }
     });
+
+    // Second pass: collect paragraphs
+    const paragraphs = [];
+    modifiedLayout.elementChanges.forEach(item => {
+      if (item.type === 'paragraph') {
+        // Only add if we haven't seen this text before
+        const contentKey = item.text.substring(0, 50);
+        if (!uniqueContent.has(contentKey)) {
+          uniqueContent.add(contentKey);
+          paragraphs.push(item);
+        }
+      }
+    });
+
+    // Sort headings by their position in the document
+    headings.sort((a, b) => {
+      // Extract numbers from selectors for basic ordering
+      const aMatch = a.elementSelector.match(/#([A-Za-z_]+)/);
+      const bMatch = b.elementSelector.match(/#([A-Za-z_]+)/);
+
+      if (aMatch && bMatch) {
+        return aMatch[1].localeCompare(bMatch[1]);
+      }
+      return 0;
+    });
+
+    // Now render the unique content
+    const mainSection = document.createElement('div');
+    mainSection.className = 'browseable-section';
+    mainSection.style.marginBottom = '30px';
+
+    // Render the headings first
+    headings.forEach(item => {
+      const heading = document.createElement('h3');
+      heading.innerHTML = item.text;
+      heading.style.cssText = 'color: #2c3e50; margin: 25px 0 15px; font-weight: bold;';
+      mainSection.appendChild(heading);
+    });
+
+    // Then render paragraphs
+    paragraphs.forEach(item => {
+      const paragraph = document.createElement('div');
+      paragraph.innerHTML = item.text;
+      paragraph.style.cssText = 'margin-bottom: 15px;';
+      mainSection.appendChild(paragraph);
+    });
+
+    simplifiedContent.appendChild(mainSection);
   } else {
     const noContent = document.createElement('p');
     noContent.textContent = 'No simplified content available for this page.';
