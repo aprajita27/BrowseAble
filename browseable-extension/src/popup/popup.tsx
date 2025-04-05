@@ -1,44 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { getAdaptedChunks } from '../utils/gemini';
+import type { ChunkedInput } from '../utils/gemini';
 
-function Popup() {
-  const [options, setOptions] = useState({
-    simplifyUI: false,
-    textToSpeech: false,
-    colorFilter: false,
-    summary: false
-  });
+export default function Popup() {
+  const [adapted, setAdapted] = useState<Record<string, string> | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    chrome.storage.sync.get('options', (data) => {
-      if (data.options) setOptions(data.options);
-    });
-  }, []);
+  // Load downloaded JSON file (manually for now)
+  const handleLoadAndRunGemini = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const toggleOption = (key: keyof typeof options) => {
-    const updated = { ...options, [key]: !options[key] };
-    setOptions(updated);
-    chrome.storage.sync.set({ options: updated });
+    const text = await file.text();
+    const json = JSON.parse(text) as ChunkedInput;
+
+    setLoading(true);
+    const result = await getAdaptedChunks(json, "adhd"); // Later make neurotype dynamic
+    setAdapted(result);
+    setLoading(false);
   };
-  
 
   return (
-    <div style={{ padding: 10 }}>
+    <div style={{ padding: 10, width: 320 }}>
       <h2>BrowseAble</h2>
-      {(Object.entries(options) as [keyof typeof options, boolean][]).map(([key, value]) => (
-            <div key={key}>
-                <label>
-                <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={() => toggleOption(key)}
-                />
-                {key}
-                </label>
-            </div>
-        ))}
 
+      <input type="file" accept="application/json" onChange={handleLoadAndRunGemini} />
+
+      {loading && <p>Loading...</p>}
+
+      {adapted && (
+        <pre style={{ marginTop: 10, maxHeight: 300, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
+          {JSON.stringify(adapted, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
-
-export default Popup;
