@@ -1,5 +1,5 @@
 {
-  "name": "browseable-extension",
+  "name": "browseable-caretaker",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,14 +12,14 @@
   "dependencies": {
     "firebase": "^11.6.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
-    "@types/chrome": "^0.0.313",
-    "@types/node": "^22.14.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",

@@ -6,7 +6,7 @@
     "permissions": ["scripting", "storage", "activeTab"],
     "host_permissions": ["<all_urls>"],
     "action": {
-      "default_popup": "popup.html",
+      "default_popup": "index.html",
       "default_icon": "icons/default_icon.png"
     },
     "background": {
