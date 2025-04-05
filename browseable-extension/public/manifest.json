@@ -3,7 +3,7 @@
     "name": "BrowseAble",
     "version": "1.0",
     "description": "An AI-powered Chrome extension for neurodivergent users.",
-    "permissions": ["scripting", "storage", "activeTab","tabs"],
+    "permissions": ["scripting", "storage", "activeTab","tabs", "notifications"],
     "host_permissions": ["<all_urls>"],
     "action": {
       "default_popup": "index.html",

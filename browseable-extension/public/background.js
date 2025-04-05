@@ -3,8 +3,163 @@
 let fullData = [];
 let totalChunksExpected = 0;
 let chunksReceived = 0;
-let activeNeurotype = 'adhd'; // Default neurotype setting
+let activeNeurotype = null; // No default neurotype - will be set only when user is logged in
 let features = {}; // Global features variable to store user preferences
+let isUserLoggedIn = false; // Flag to track user login status
+
+// Function to check user login status
+async function checkUserLoginStatus() {
+  try {
+    // Get user data from storage
+    const userData = await chrome.storage.local.get(['user', 'neurotype', 'features']);
+
+    if (userData.user) {
+      isUserLoggedIn = true;
+
+      // If we have a user ID but missing preferences, fetch them from the database
+      if (userData.user && (!userData.neurotype || !userData.features)) {
+        try {
+          const userId = userData.user.id || userData.user;
+          const freshData = await fetchUserPreferences(userId);
+
+          activeNeurotype = freshData.neurotype || 'adhd';
+          features = freshData.features || {};
+
+          // Update storage with fresh data
+          chrome.storage.local.set({
+            neurotype: activeNeurotype,
+            features: features
+          });
+        } catch (fetchError) {
+          console.error('Error fetching fresh user data:', fetchError);
+          // Fall back to stored values or defaults
+          activeNeurotype = userData.neurotype || 'adhd';
+          features = userData.features || {};
+        }
+      } else {
+        // Use the stored values
+        activeNeurotype = userData.neurotype || 'adhd';
+        features = userData.features || {};
+      }
+
+      console.log('User logged in:', userData.user);
+      console.log('Active neurotype:', activeNeurotype);
+      console.log('User features:', features);
+
+      console.log('=========== BrowseAble Extension Status ===========');
+      console.log(`Active Mode: ${activeNeurotype}`);
+      console.log('Enabled Features:');
+      Object.entries(features).forEach(([key, enabled]) => {
+        if (enabled) {
+          console.log(`  ✓ ${key}`);
+        }
+      });
+      console.log('Disabled Features:');
+      Object.entries(features).forEach(([key, enabled]) => {
+        if (!enabled) {
+          console.log(`  ✗ ${key}`);
+        }
+      });
+      console.log('===================================================');
+
+      return true;
+    } else {
+      isUserLoggedIn = false;
+      activeNeurotype = null;
+      features = {};
+      console.log('No user logged in');
+      console.log('=========== BrowseAble Extension Status ===========');
+      console.log('Status: Not logged in');
+      console.log('No accessibility features are active');
+      console.log('===================================================');
+      return false;
+    }
+  } catch (error) {
+    console.error('Error checking user login status:', error);
+    isUserLoggedIn = false;
+    return false;
+  }
+}
+
+// Call this on extension startup
+checkUserLoginStatus();
+
+// Display startup information in the console
+console.log('=========== BrowseAble Extension Startup ===========');
+console.log('Version: 1.0.0');
+console.log('Status: Initializing...');
+
+// Listen for the extension installation or update
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log(`Extension ${details.reason}: ${details.reason === 'install' ? 'New installation' : 'Updated to latest version'}`);
+
+  // Check initial user state
+  const isLoggedIn = await checkUserLoginStatus();
+
+  if (isLoggedIn) {
+    console.log('User is already logged in');
+
+    // Display the active features in a formatted table
+    console.table(
+      Object.entries(features).map(([key, enabled]) => ({
+        Feature: key,
+        Enabled: enabled ? '✓' : '✗',
+      }))
+    );
+
+    // Send notification about active mode
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon128.png',
+      title: 'BrowseAble Active',
+      message: `Active mode: ${activeNeurotype.toUpperCase()}`,
+      priority: 2
+    });
+  } else {
+    console.log('No user logged in at startup');
+
+    // Optional: Remind user to log in
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon128.png',
+      title: 'BrowseAble',
+      message: 'Please log in to activate accessibility features',
+      priority: 1
+    });
+  }
+
+  console.log('===================================================');
+});
+
+// Add this function to fetch user preferences from your database
+async function fetchUserPreferences(userId) {
+  try {
+    // Your API endpoint (replace with your actual API URL)
+    const apiUrl = `https://your-api-url.com/api/users/${userId}/preferences`;
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+        // Add any authorization headers if needed
+        // 'Authorization': 'Bearer your-token'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user preferences: ${response.status} ${response.statusText}`);
+    }
+
+    const userData = await response.json();
+    return {
+      neurotype: userData.neurotype,
+      features: userData.features
+    };
+  } catch (error) {
+    console.error('Error in fetchUserPreferences:', error);
+    throw error;
+  }
+}
 
 // ================ GEMINI FUNCTIONALITY ================
 // Neurotype prompt styles from gemini.ts
@@ -20,6 +175,7 @@ const neuroPromptStyles = {
  */
 function buildPromptFromChunks(data, neurotype) {
   const contentLines = [];
+  console.log('Building prompt from chunks:', features);
 
   // Parse all chunks
   Object.entries(data).forEach(([dataIndex, dataItem]) => {
@@ -30,10 +186,10 @@ function buildPromptFromChunks(data, neurotype) {
         const sectionLines = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
         sections.forEach((section, sectionIndex) => {
           if (!section || !section.content) return;
-        
+
           const sectionId = `${chunkId}-${sectionIndex + 1}`;
           const sectionHeader = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
-        
+
           section.content.forEach((item) => {
             if (item.type === "image") {
               const base64Info = item.base64 ? "base64_image_provided" : "no_base64";
@@ -45,7 +201,7 @@ function buildPromptFromChunks(data, neurotype) {
               sectionHeader.push(`- ${prefix} "${item.text.trim()}"`);
             }
           });
-        
+
           contentLines.push(sectionHeader.join("\n"));
         });
         contentLines.push(sectionLines.join('\n'));
@@ -98,7 +254,8 @@ You are an accessibility AI adapting web content for neurodivergent users.
 Neurotype: ${neurotype.toUpperCase()}
 
 Adapt each section using the rules below:
-${specificInstructions}
+${specificInstructions} and
+you need to strictly follow the rules of ${features}
 
 Universal Rules for All Neurotypes:
 - Do not skip any section, even if repetitive
@@ -147,6 +304,8 @@ function tryParseJSON(raw) {
  */
 async function getAdaptedChunks(chunks, neurotype) {
   const prompt = buildPromptFromChunks(chunks, neurotype);
+
+  console.warn('prompt', prompt);
 
   // Enter your API key here (for development purposes)
   // In production, you should use a more secure method to store API keys
@@ -448,26 +607,92 @@ function transformToLayoutChanges(adaptedContent, originalData) {
 
 // ================ MESSAGE HANDLERS ================
 
-// Combine the duplicate message listeners into a single one
+// Update the message handler for "sendChunk"
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Handle neurotype updates
   if (message.type === 'updateNeurotype') {
-    activeNeurotype = message.neurotype;
-    console.log('Neurotype updated:', activeNeurotype);
-    sendResponse({ status: 'neurotype_updated' });
+    if (isUserLoggedIn) {
+      activeNeurotype = message.neurotype;
+      console.log('Neurotype updated:', activeNeurotype);
+      // Save to storage
+      chrome.storage.local.set({ neurotype: activeNeurotype });
+      sendResponse({ status: 'neurotype_updated' });
+    } else {
+      console.log('Cannot update neurotype: User not logged in');
+      sendResponse({ status: 'error', message: 'User not logged in' });
+    }
     return true;
   }
 
   // Handle features updates
   if (message.type === 'updateFeatures') {
-    features = message.features; // Update global features variable
-    console.log('Features updated:', features);
-    sendResponse({ status: 'features_updated' });
+    if (isUserLoggedIn) {
+      features = message.features;
+      console.log('Features updated:', features);
+      // Save to storage
+      chrome.storage.local.set({ features: features });
+      sendResponse({ status: 'features_updated' });
+    } else {
+      console.log('Cannot update features: User not logged in');
+      sendResponse({ status: 'error', message: 'User not logged in' });
+    }
+    return true;
+  }
+
+  // Handle login/logout events
+  if (message.type === 'userLoggedIn') {
+    isUserLoggedIn = true;
+
+    // Just use the data already provided by the popup
+    activeNeurotype = message.neurotype || message.selectedMode || 'adhd';
+    features = message.features || {};
+    const userName = message.firstName ?
+      `${message.firstName} ${message.lastName || ''}` :
+      message.email || message.user;
+
+    // Save to storage
+    chrome.storage.local.set({
+      user: message.user,
+      userName: userName,
+      neurotype: activeNeurotype,
+      features: features
+    });
+
+    console.log('User logged in:', message.user);
+    console.log('User name:', userName);
+    console.log('Neurotype:', activeNeurotype);
+    console.log('Features:', features);
+
+    sendResponse({
+      status: 'login_processed',
+      neurotype: activeNeurotype,
+      features: features,
+      userName: userName
+    });
+
+    return true;
+  }
+
+  if (message.type === 'userLoggedOut') {
+    isUserLoggedIn = false;
+    activeNeurotype = null;
+    features = {};
+    // Clear storage
+    chrome.storage.local.remove(['user', 'neurotype', 'features']);
+    console.log('User logged out');
+    sendResponse({ status: 'logout_processed' });
     return true;
   }
 
   // Handle the "sendChunk" type message
   if (message.type === 'sendChunk') {
+    // Only process chunks if user is logged in
+    if (!isUserLoggedIn) {
+      console.log('Ignoring content chunk: User not logged in');
+      sendResponse({ status: 'ignored', message: 'User not logged in' });
+      return true;
+    }
+
     const chunkData = message.chunk;
     totalChunksExpected = message.totalChunksExpected;
 
@@ -507,6 +732,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     sendResponse({ status: 'chunk_received', message: `Chunk ${chunksReceived} received.` });
+    return true;
+  }
+
+  // Also add a handler for the "getNeurotype" message from content script
+  if (message.type === 'getNeurotype') {
+    // Get user name from storage
+    chrome.storage.local.get(['userName'], (result) => {
+      sendResponse({
+        neurotype: activeNeurotype,
+        features: features,
+        isLoggedIn: isUserLoggedIn,
+        userName: result.userName || null
+      });
+    });
     return true;
   }
 

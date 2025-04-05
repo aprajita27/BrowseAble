@@ -2,20 +2,78 @@ console.log("Content script loaded");
 
 // Track the active neurotype in content.js
 let activeNeurotype = 'adhd';
+let activeFeatures = {}; // Add this to track features
+let userName = null; // Add this to track user name
 
-// Get the active neurotype when the content script loads
+// Get the active neurotype and user info when the content script loads
 chrome.runtime.sendMessage({ type: 'getNeurotype' }, function (response) {
-  if (response && response.neurotype) {
-    activeNeurotype = response.neurotype;
-    console.log(`Current neurotype: ${activeNeurotype}`);
+  if (response) {
+    if (response.neurotype) {
+      activeNeurotype = response.neurotype;
+      console.log(`Current neurotype: ${activeNeurotype}`);
+    }
+
+    if (response.features) {
+      activeFeatures = response.features;
+      console.log('Active features:', activeFeatures);
+
+      // Log enabled features in a more readable format
+      const enabledFeatures = Object.entries(activeFeatures)
+        .filter(([_, enabled]) => enabled)
+        .map(([key]) => key);
+
+      if (enabledFeatures.length > 0) {
+        console.log('Enabled features:', enabledFeatures.join(', '));
+      } else {
+        console.log('No features enabled');
+      }
+    }
+
+    if (response.userName) {
+      userName = response.userName;
+      console.log(`Current user: ${userName}`);
+    }
+
+    if (response.isLoggedIn) {
+      console.log('User is logged in');
+    } else {
+      console.log('No user logged in - accessibility features inactive');
+    }
   }
 });
 
-// Listen for neurotype changes
+// Listen for neurotype changes and user info updates
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'updateNeurotype') {
     activeNeurotype = message.neurotype;
     console.log(`Neurotype updated to: ${activeNeurotype}`);
+  }
+
+  if (message.type === 'updateFeatures') {
+    activeFeatures = message.features;
+    console.log('Features updated:', activeFeatures);
+
+    // Log enabled features in a more readable format
+    const enabledFeatures = Object.entries(activeFeatures)
+      .filter(([_, enabled]) => enabled)
+      .map(([key]) => key);
+
+    if (enabledFeatures.length > 0) {
+      console.log('Enabled features:', enabledFeatures.join(', '));
+    } else {
+      console.log('No features enabled');
+    }
+  }
+
+  if (message.type === 'userLoggedIn') {
+    userName = message.userName || 'Unknown User';
+    console.log(`User logged in: ${userName}`);
+  }
+
+  if (message.type === 'userLoggedOut') {
+    userName = null;
+    activeFeatures = {};
+    console.log('User logged out - accessibility features deactivated');
   }
 });
 
@@ -82,7 +140,7 @@ async function extractContentFromElement(el) {
     content.type = "image";
     content.src = el.src; // Always include src
     content.alt = el.alt || "";
-    
+
     try {
       const base64 = await convertImageToBase64(el.src);
       if (base64) {
@@ -96,10 +154,10 @@ async function extractContentFromElement(el) {
     content.src = el.src || el.querySelector("source")?.src || "";
 
     // Caption / accessibility metadata
-    content.caption = el.getAttribute("aria-label") 
-                  || el.getAttribute("title") 
-                  || el.querySelector("track[kind='descriptions']")?.textContent 
-                  || "";
+    content.caption = el.getAttribute("aria-label")
+      || el.getAttribute("title")
+      || el.querySelector("track[kind='descriptions']")?.textContent
+      || "";
 
     // Fallback caption from filename
     if (!content.caption && content.src) {

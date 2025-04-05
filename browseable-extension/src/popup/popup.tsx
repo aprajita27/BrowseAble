@@ -56,35 +56,46 @@ export default function Popup() {
             signOut(auth);
           } else {
             setUserWantsCaretaker(!!data.wantsCaretaker);
-            if (data.features) {
-              setFeatures(data.features);
-              chrome.storage.sync.set({ features: data.features });
 
-              // Send features to background script on load
-              chrome.runtime.sendMessage({
-                type: 'updateFeatures',
-                features: data.features
-              });
-            }
+            // Set features and modes in state
+            const userFeatures = data.features || {};
+            const userSelectedMode = data.selectedMode || 'adhd';
+
+            setFeatures(userFeatures);
+            chrome.storage.sync.set({ features: userFeatures });
+
             if (data.modes) {
               setSelectedModes(data.modes);
               chrome.storage.sync.set({ modes: data.modes });
             }
-            if (data.selectedMode) {
-              setSelectedMode(data.selectedMode);
-              chrome.storage.sync.set({ neurotype: data.selectedMode });
 
-              // Send selected mode to background script on load
-              chrome.runtime.sendMessage({
-                type: 'updateNeurotype',
-                neurotype: data.selectedMode
-              });
+            if (userSelectedMode) {
+              setSelectedMode(userSelectedMode);
+              chrome.storage.sync.set({ neurotype: userSelectedMode });
             }
+
+            // Send ALL user data to background script on login
+            chrome.runtime.sendMessage({
+              type: 'userLoggedIn',
+              user: user.uid,
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              email: data.email || user.email || '',
+              neurotype: userSelectedMode,
+              features: userFeatures
+            });
+
             await fetchModesAndFeatures();
           }
         }
       } else {
+        // User has logged out
         setIsLoggedIn(false);
+
+        // Notify background script about logout
+        chrome.runtime.sendMessage({
+          type: 'userLoggedOut'
+        });
       }
     });
     return () => unsubscribe();
