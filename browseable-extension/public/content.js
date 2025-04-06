@@ -288,19 +288,42 @@ function chunkLayout(layout, tokenLimit = 1500) {
 
 // Function to send layout data to gemini.js via chrome.runtime
 function sendChunkToGemini(chunkData, chunkIndex, totalChunksExpected) {
-  console.log(`Sending chunk ${chunkIndex} of ${totalChunksExpected}`);  // Add this to debug
+  console.log(`Sending chunk ${chunkIndex} of ${totalChunksExpected}`);
+
+  // Show progress spinner on first chunk
+  if (chunkIndex === 1) {
+    showProgressSpinner("Analyzing page content...");
+  }
+
+  // Update progress counter with chunk info
+  const counter = document.getElementById('browseable-progress-counter');
+  if (counter) {
+    counter.textContent = `Processing chunk ${chunkIndex} of ${totalChunksExpected}`;
+  }
+
   chrome.runtime.sendMessage({
     type: 'sendChunk',
     chunk: chunkData,
     totalChunksExpected: totalChunksExpected
   }, (response) => {
     console.log(`Response for chunk ${chunkIndex}:`, response);
+
+    // If it's the last chunk, we're done with sending, but still processing
+    if (chunkIndex === totalChunksExpected) {
+      const counter = document.getElementById('browseable-progress-counter');
+      if (counter) {
+        counter.textContent = 'Finalizing content adaptation...';
+      }
+    }
   });
 }
 
 // Main function to run on page load
 const onPageLoad = async function () {
   console.log("DOM fully loaded or already loaded");
+
+  // Show progress spinner when starting to extract layout
+  showProgressSpinner("Analyzing page content...");
 
   const structuredData = await extractPageLayout();
   console.log("Extracted structured layout:", structuredData);
@@ -334,6 +357,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'gemini_data') {
     console.log('Received processed data in content.js:', message.payload);
 
+    // Hide progress spinner
+    hideProgressSpinner();
+
     // Apply the changes to the page (layout, content, etc.)
     applyLayoutChanges(message.payload);
 
@@ -346,6 +372,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 function applyLayoutChanges(modifiedLayout) {
   console.log('Applying layout changes with elegant overlay:', modifiedLayout);
+
+  // Hide the progress spinner if it exists
+  hideProgressSpinner();
 
   // Remove any existing overlay first
   const existingOverlay = document.getElementById('browseable-overlay');
@@ -637,23 +666,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Update the active neurotype
     activeNeurotype = message.neurotype;
 
-    // Show a processing notification
-    const processingNotification = document.createElement('div');
-    processingNotification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-family: Arial, sans-serif;
-      z-index: 10000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    `;
-    processingNotification.textContent = "🔄 BrowseAble: Adapting content...";
-    document.body.appendChild(processingNotification);
+    // Show a processing spinner with progress
+    showProgressSpinner("Processing content...");
 
     // Re-process the page
     setTimeout(async () => {
@@ -663,7 +677,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       await onPageLoad(); // ensure async operation completes
-      processingNotification.remove();
+      hideProgressSpinner();
       try {
         sendResponse({ status: 'reprocess_complete' });
       } catch (err) {
@@ -674,6 +688,186 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+
+// Add these functions to show/hide a circular progress spinner
+
+function showProgressSpinner(message = "Processing...") {
+  // Remove any existing spinner
+  hideProgressSpinner();
+
+  // Create spinner container
+  const spinnerContainer = document.createElement('div');
+  spinnerContainer.id = 'browseable-progress-container';
+  spinnerContainer.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  `;
+
+  // Add close button in the top-left corner
+  const closeButton = document.createElement('button');
+  closeButton.innerHTML = '&times;'; // × symbol
+  closeButton.style.cssText = `
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    line-height: 24px;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    transition: all 0.2s ease;
+  `;
+  closeButton.title = "Cancel processing";
+
+  // Add hover effects
+  closeButton.onmouseover = function () {
+    this.style.background = '#f0f0f0';
+    this.style.color = '#333';
+  };
+  closeButton.onmouseout = function () {
+    this.style.background = 'rgba(255, 255, 255, 0.8)';
+    this.style.color = '#666';
+  };
+
+  // Add click handler to cancel processing
+  closeButton.onclick = function () {
+    // Hide the spinner
+    hideProgressSpinner();
+
+    // Notify that processing was canceled
+    console.log('Content processing canceled by user');
+
+    // Send message to background script to stop any ongoing processing
+    chrome.runtime.sendMessage({
+      type: 'cancelProcessing'
+    }, (response) => {
+      console.log('Sent cancel processing request:', response);
+    });
+  };
+
+  spinnerContainer.appendChild(closeButton);
+
+  // Create spinner
+  const spinner = document.createElement('div');
+  spinner.className = 'browseable-progress-spinner';
+  spinner.style.cssText = `
+    width: 60px;
+    height: 60px;
+    border: 3px solid rgba(74, 122, 167, 0.2);
+    border-radius: 50%;
+    border-top-color: #4a7aa7;
+    animation: browseable-spin 1s ease-in-out infinite;
+  `;
+
+  // Create keyframes for animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes browseable-spin {
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Create message
+  const messageElement = document.createElement('div');
+  messageElement.textContent = message;
+  messageElement.style.cssText = `
+    margin-top: 20px;
+    color: #4a7aa7;
+    font-size: 16px;
+    font-weight: 500;
+  `;
+
+  // Create progress counter
+  const progressCounter = document.createElement('div');
+  progressCounter.id = 'browseable-progress-counter';
+  progressCounter.textContent = 'Processing...';
+  progressCounter.style.cssText = `
+    margin-top: 10px;
+    color: #666;
+    font-size: 14px;
+  `;
+
+  // Add BrowseAble branding
+  const branding = document.createElement('div');
+  branding.innerHTML = '<strong>BrowseAble</strong>';
+  branding.style.cssText = `
+    position: absolute;
+    bottom: 20px;
+    color: #4a7aa7;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+  `;
+
+  // Append elements
+  spinnerContainer.appendChild(spinner);
+  spinnerContainer.appendChild(messageElement);
+  spinnerContainer.appendChild(progressCounter);
+  spinnerContainer.appendChild(branding);
+  document.body.appendChild(spinnerContainer);
+
+  // Start progress simulation
+  simulateProgress();
+}
+
+function hideProgressSpinner() {
+  const spinner = document.getElementById('browseable-progress-container');
+  if (spinner) {
+    spinner.remove();
+  }
+
+  // Clear any progress simulation interval
+  if (window.browseableProgressInterval) {
+    clearInterval(window.browseableProgressInterval);
+    window.browseableProgressInterval = null;
+  }
+}
+
+function simulateProgress() {
+  let progress = 0;
+  const counter = document.getElementById('browseable-progress-counter');
+
+  // Clear any existing interval
+  if (window.browseableProgressInterval) {
+    clearInterval(window.browseableProgressInterval);
+  }
+
+  window.browseableProgressInterval = setInterval(() => {
+    // Calculate new progress value - faster at first, slower towards the end
+    if (progress < 70) {
+      progress += Math.random() * 5;
+    } else if (progress < 90) {
+      progress += Math.random() * 2;
+    } else if (progress < 95) {
+      progress += 0.5;
+    }
+
+    // Cap at 95% - will go to 100% when complete
+    progress = Math.min(progress, 95);
+
+    if (counter) {
+      counter.textContent = `${Math.floor(progress)}% complete`;
+    }
+  }, 300);
+}
 
 // Add this function to get the neurotype-specific CSS
 
@@ -766,4 +960,20 @@ function getNeurotypeStyles(neurotype) {
 
   return styles[neurotype] || styles.adhd;
 }
+
+// Add to background.js to handle the cancelProcessing message
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'cancelProcessing') {
+    console.log('Received request to cancel processing');
+
+    // Set a flag to cancel ongoing operations
+    window.cancelProcessingRequested = true;
+
+    // Cancel any ongoing API calls if possible
+    // This depends on your implementation of API calls
+
+    sendResponse({ status: 'processing_canceled' });
+    return true;
+  }
+});
 
