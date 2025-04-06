@@ -161,15 +161,6 @@ async function fetchUserPreferences(userId) {
   }
 }
 
-// ================ GEMINI FUNCTIONALITY ================
-// Neurotype prompt styles from gemini.ts
-const neuroPromptStyles = {
-  adhd: "Summarize in short, clear bullet points. Use headers where necessary. Keep things structured and actionable. Remove extra detail or side notes.",
-  autism: "Convert into clear, literal, step-by-step explanations. Avoid metaphors, idioms, or ambiguous language. Prefer structured sequences and exact terms.",
-  blind: "Rephrase into simple, clear narration. Describe visuals briefly. Use consistent sentence structures. Do not include formatting instructions or markdown.",
-  sensory: "Rewrite content in a calming, neutral tone. Remove emotional intensity or visual complexity. Prefer short, soft sentences without strong emphasis."
-};
-
 /**
  * Build a prompt from chunked content that considers element types and neurotype instructions.
  */
@@ -215,11 +206,11 @@ function buildPromptFromChunks(data, neurotype) {
     adhd: `
 For ADHD users:
 - Use short bullet points (max 15 words)
-- Break complex sections into subheadings
+- Keep all sections and subheadings, summarize only the content inside
 - Highlight key actions or benefits
-- Remove unnecessary tangents or distractions. 
-- If an image is not needed, remove it completely
+- Remove unnecessary tangents or distractions but keep all context. Prepare a context summary separately to make it easy to follow
 - If something is not defined or you are not sure, do not mention it. 
+- Generate not just the text of what is displayed but the intent is derive a summary of the page and present to make it less overwhelming to concentrate
 - Keep content logically organized and easy to scan`.trim(),
 
     autism: `
@@ -276,6 +267,16 @@ Return clean and complete JSON in this exact format:
   ],
   "contextualInsights": "2-3 sentences of overall context about this page and its purpose"
 }
+
+Universal Rules for All Neurotypes:
+- You need to generate a context summary and highlights of the entire content not just convert to text
+- Do not skip any section, even if repetitive
+- Do not over-summarize or merge content across sections
+- Preserve facts, processes, names, and lists, purpose of the site, features provided, steps given
+- Describe images using the pattern: "This is an image of ...", if no alt text is present infer the meaning and describe from the link or base64 if given
+- Provide helpful video context using captions or inferred meaning
+- The information about any graphic, or any text block on the page should not be not defined or ambiguous. For each provide the context or inference if not exact meaning
+- If the content exceeds 5 bullets, give different sections for every 5 or less than 5 bullets
 
 IMPORTANT FORMATTING RULES:
 - DO NOT use Markdown (*, -, **, _, etc.).
