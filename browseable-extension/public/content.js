@@ -129,7 +129,11 @@ async function extractContentFromElement(el) {
   const selector = getElementSelector(el);
   let content = { type: null, elementSelector: selector };
 
-  if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(type)) {
+  if (type === "a") {
+    content.type = "link";
+    content.text = el.innerText.trim();
+    content.href = el.href || "";
+  } else if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(type)) {
     content.type = "heading";
     content.level = parseInt(type[1]);
     content.text = el.innerText.trim();
@@ -207,11 +211,11 @@ async function extractPageLayout() {
 
   for (const section of sections) {
     const contentBlocks = [];
-    const children = section.querySelectorAll("h1,h2,h3,h4,h5,h6,p,img,video,ul,ol");
+    const children = section.querySelectorAll("h1,h2,h3,h4,h5,h6,p,img,video,ul,ol,a");
 
     for (const child of children) {
       const content = await extractContentFromElement(child);
-      if (content && (content.text?.length > 0 || content.src || content.base64)) {
+      if (content && (content.text?.length > 0 || content.src || content.base64 || content.href)) {
         contentBlocks.push(content);
       }
     }
@@ -322,6 +326,12 @@ function sendChunkToGemini(chunkData, chunkIndex, totalChunksExpected) {
 const onPageLoad = async function () {
   console.log("DOM fully loaded or already loaded");
 
+  // Skip Google pages
+  if (isGooglePage()) {
+    console.log("Google page detected. Skipping BrowseAble processing.");
+    return;
+  }
+
   // Show progress spinner when starting to extract layout
   showProgressSpinner("Analyzing page content...");
 
@@ -343,6 +353,14 @@ const onPageLoad = async function () {
     }
   );
 };
+
+// Function to check if the current page is a Google page
+function isGooglePage() {
+  const hostname = window.location.hostname;
+  return hostname.includes('google.') ||
+    hostname === 'gmail.com' ||
+    hostname.endsWith('.google.com');
+}
 
 // Trigger when the DOM is loaded
 if (document.readyState === 'loading') {
@@ -610,6 +628,127 @@ function applyLayoutChanges(modifiedLayout) {
   content.appendChild(simplifiedContent);
   overlay.appendChild(content);
 
+  // Add contextual insights if available
+  if (modifiedLayout.contextualInsights) {
+    const insightsContainer = document.createElement('div');
+    insightsContainer.style.cssText = `
+      max-width: 750px;
+      margin: 25px auto;
+      padding: 15px 20px;
+      background: #f0f7ff;
+      border-radius: 8px;
+      border-left: 4px solid #4a7aa7;
+      color: #2c3e50;
+      font-size: 15px;
+    `;
+
+    const insightsTitle = document.createElement('h4');
+    insightsTitle.textContent = 'Page Context';
+    insightsTitle.style.cssText = `
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #4a7aa7;
+    `;
+
+    const insightsText = document.createElement('p');
+    insightsText.textContent = modifiedLayout.contextualInsights;
+    insightsText.style.cssText = `margin: 0;`;
+
+    insightsContainer.appendChild(insightsTitle);
+    insightsContainer.appendChild(insightsText);
+    overlay.appendChild(insightsContainer);
+  }
+
+  // Add relevant links table if available
+  if (modifiedLayout.relevantLinks && modifiedLayout.relevantLinks.length > 0) {
+    const linksContainer = document.createElement('div');
+    linksContainer.style.cssText = `
+      max-width: 750px;
+      margin: 25px auto 40px;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    `;
+
+    const linksTitle = document.createElement('h3');
+    linksTitle.textContent = 'Important Links';
+    linksTitle.style.cssText = `
+      margin: 0 0 15px 0;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee;
+      color: #2c3e50;
+      font-weight: 600;
+      font-size: 18px;
+    `;
+
+    // Create links table
+    const linksTable = document.createElement('table');
+    linksTable.style.cssText = `
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    `;
+
+    // Add table header
+    const tableHeader = document.createElement('thead');
+    tableHeader.innerHTML = `
+      <tr>
+        <th style="text-align: left; padding: 8px; border-bottom: 2px solid #eee; color: #4a7aa7;">Link</th>
+        <th style="text-align: left; padding: 8px; border-bottom: 2px solid #eee; color: #4a7aa7;">Description</th>
+      </tr>
+    `;
+
+    // Add table body
+    const tableBody = document.createElement('tbody');
+
+    // Add rows for each link
+    modifiedLayout.relevantLinks.forEach(link => {
+      const row = document.createElement('tr');
+      row.style.cssText = `border-bottom: 1px solid #f0f0f0;`;
+
+      // Link cell with actual link
+      const linkCell = document.createElement('td');
+      linkCell.style.cssText = `padding: 12px 8px;`;
+
+      const linkElement = document.createElement('a');
+      linkElement.href = link.url;
+      linkElement.textContent = link.title;
+      linkElement.style.cssText = `
+        color: #4a7aa7;
+        text-decoration: none;
+        border-bottom: 1px dotted #4a7aa7;
+        font-weight: 500;
+      `;
+      linkElement.target = "_blank"; // Open in new tab
+
+      linkCell.appendChild(linkElement);
+
+      // Description cell
+      const descCell = document.createElement('td');
+      descCell.textContent = link.summary;
+      descCell.style.cssText = `padding: 12px 8px; color: #555;`;
+
+      // Add cells to row
+      row.appendChild(linkCell);
+      row.appendChild(descCell);
+
+      // Add row to table body
+      tableBody.appendChild(row);
+    });
+
+    // Assemble table
+    linksTable.appendChild(tableHeader);
+    linksTable.appendChild(tableBody);
+
+    // Add elements to container
+    linksContainer.appendChild(linksTitle);
+    linksContainer.appendChild(linksTable);
+
+    // Add container to overlay
+    overlay.appendChild(linksContainer);
+  }
+
   // Add page info at the bottom
   const pageInfo = document.createElement('div');
   pageInfo.style.cssText = `
@@ -662,6 +801,13 @@ function applyLayoutChanges(modifiedLayout) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'reprocessPage') {
     console.log(`Reprocessing page for neurotype: ${message.neurotype}`);
+
+    // Skip Google pages
+    if (isGooglePage()) {
+      console.log("Google page detected. Skipping BrowseAble processing.");
+      sendResponse({ status: 'google_page_skipped' });
+      return true;
+    }
 
     // Update the active neurotype
     activeNeurotype = message.neurotype;

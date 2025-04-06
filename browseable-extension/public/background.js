@@ -166,6 +166,8 @@ async function fetchUserPreferences(userId) {
  */
 function buildPromptFromChunks(data, neurotype) {
   const contentLines = [];
+  const links = []; // Collect links from the data
+
   console.log('Building prompt from chunks:', features);
 
   // Parse all chunks
@@ -173,29 +175,28 @@ function buildPromptFromChunks(data, neurotype) {
     Object.entries(dataItem).forEach(([chunkId, sections]) => {
       sections.forEach((section, sectionIndex) => {
         if (!section || !section.content) return;
+
         const sectionId = `${chunkId}-${sectionIndex + 1}`;
         const sectionLines = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
-        sections.forEach((section, sectionIndex) => {
-          if (!section || !section.content) return;
 
-          const sectionId = `${chunkId}-${sectionIndex + 1}`;
-          const sectionHeader = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
-
-          section.content.forEach((item) => {
-            if (item.type === "image") {
-              const base64Info = item.base64 ? "base64_image_provided" : "no_base64";
-              const label = item.alt?.trim() || "No alt text";
-              sectionHeader.push(`- [image] (${base64Info}) alt="${label}"`);
-            } else if (item.text && item.text.trim()) {
-              const isShort = item.text.trim().split(" ").length < 5;
-              const prefix = isShort ? "[label]" : `[${item.type}]`;
-              sectionHeader.push(`- ${prefix} "${item.text.trim()}"`);
-            }
-          });
-
-          contentLines.push(sectionHeader.join("\n"));
+        section.content.forEach((item) => {
+          if (item.type === "image") {
+            const base64Info = item.base64 ? "base64_image_provided" : "no_base64";
+            const label = item.alt?.trim() || "No alt text";
+            sectionLines.push(`- [image] (${base64Info}) alt="${label}"`);
+          } else if (item.type === "link") {
+            const linkText = item.text?.trim() || "No link text";
+            const linkUrl = item.href || "No URL";
+            sectionLines.push(`- [link] "${linkText}" (${linkUrl})`);
+            links.push({ text: linkText, url: linkUrl }); // Collect the link
+          } else if (item.text && item.text.trim()) {
+            const isShort = item.text.trim().split(" ").length < 5;
+            const prefix = isShort ? "[label]" : `[${item.type}]`;
+            sectionLines.push(`- ${prefix} "${item.text.trim()}"`);
+          }
         });
-        contentLines.push(sectionLines.join('\n'));
+
+        contentLines.push(sectionLines.join("\n"));
       });
     });
   });
@@ -245,8 +246,27 @@ You are an accessibility AI adapting web content for neurodivergent users.
 Neurotype: ${neurotype.toUpperCase()}
 
 Adapt each section using the rules below:
-${specificInstructions} and
-you need to strictly follow the rules of ${features}
+${specificInstructions}
+
+Extract the 5 most important links from the content provided. Use only the links explicitly mentioned in the content. For each link, identify:
+- The link text or title
+- A one-sentence summary of what the link does or where it leads
+- The full URL
+
+Return clean and complete JSON in this exact format:
+
+{
+  "chunk1-1": "Simplified version of section 1",
+  "chunk1-2": "Simplified version of section 2",
+  "relevantLinks": [
+    { 
+      "title": "Link title or text",
+      "summary": "One sentence explaining what this link does",
+      "url": "https://example.com/page"
+    }
+  ],
+  "contextualInsights": "2-3 sentences of overall context about this page and its purpose"
+}
 
 Universal Rules for All Neurotypes:
 - You need to generate a context summary and highlights of the entire content not just convert to text
@@ -257,22 +277,12 @@ Universal Rules for All Neurotypes:
 - Provide helpful video context using captions or inferred meaning
 - The information about any graphic, or any text block on the page should not be not defined or ambiguous. For each provide the context or inference if not exact meaning
 - If the content exceeds 5 bullets, give different sections for every 5 or less than 5 bullets
-- Return clean and complete JSON in this exact format:
-
-{
-  "chunk1-1": "Simplified version of section 1",
-  "chunk1-2": "Simplified version of section 2"
-}
-
 
 IMPORTANT FORMATTING RULES:
 - DO NOT use Markdown (*, -, **, _, etc.).
 - Return clean, plain text only.
 - Use line breaks or numbered lists only if needed.
 - Avoid styling markers like "**bold**" or "_italics_".
-
-Strictly adhere to the above instructions. DO NOT RETURN MARKDOWN. DO NOT add explanations. 
-Return Only the JSON.
 
 Webpage Content:
 ${contentLines.join('\n\n')}
@@ -392,8 +402,13 @@ function transformToLayoutChanges(adaptedContent, originalData) {
   const styleChanges = [];
   const elementChanges = [];
 
+  // Extract relevant links and contextual insights
+  const relevantLinks = adaptedContent.relevantLinks || [];
+  const contextualInsights = adaptedContent.contextualInsights || '';
+
   console.log('Transforming content with original data:', originalData);
   console.log('Adapted content to transform:', adaptedContent);
+  console.log('Relevant links extracted:', relevantLinks);
 
   // Add basic layout improvements for all neurotypes
   layoutChanges.push({
@@ -505,11 +520,14 @@ function transformToLayoutChanges(adaptedContent, originalData) {
   const processedSelectors = new Set();
 
   // Process the adapted content
-  Object.entries(adaptedContent).forEach(([chunkId, simplifiedText]) => {
+  Object.entries(adaptedContent).forEach(([key, value]) => {
+    // Skip the relevantLinks and contextualInsights keys
+    if (key === 'relevantLinks' || key === 'contextualInsights') return;
+
     // Parse the chunk-section format (e.g., "chunk1-2")
-    const parts = chunkId.match(/chunk(\d+)-(\d+)/);
+    const parts = key.match(/chunk(\d+)-(\d+)/);
     if (!parts) {
-      console.log(`Skipping invalid chunk ID format: ${chunkId}`);
+      console.log(`Skipping invalid chunk ID format: ${key}`);
       return;
     }
 
@@ -551,11 +569,11 @@ function transformToLayoutChanges(adaptedContent, originalData) {
     }
 
     // Format the simplified text appropriately based on neurotype
-    let formattedText = simplifiedText;
+    let formattedText = value;
 
     // For ADHD, ensure bullet points are preserved and formatting is enhanced
-    if (activeNeurotype === 'adhd' && simplifiedText.includes('- ')) {
-      formattedText = simplifiedText.split('\n').map(line => {
+    if (activeNeurotype === 'adhd' && value.includes('- ')) {
+      formattedText = value.split('\n').map(line => {
         if (line.startsWith('- ')) {
           return `• ${line.substring(2)}`;
         }
@@ -565,7 +583,7 @@ function transformToLayoutChanges(adaptedContent, originalData) {
 
     // For autism, ensure step-by-step structure is preserved
     if (activeNeurotype === 'autism') {
-      formattedText = simplifiedText.replace(/\n/g, '<br>');
+      formattedText = value.replace(/\n/g, '<br>');
     }
 
     // Apply the simplified text to each content element
@@ -594,7 +612,9 @@ function transformToLayoutChanges(adaptedContent, originalData) {
   return {
     layoutChanges,
     styleChanges,
-    elementChanges
+    elementChanges,
+    relevantLinks,
+    contextualInsights
   };
 }
 
