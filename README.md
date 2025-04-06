@@ -50,7 +50,7 @@ We used Gemini API to:
 
 1. Clone this repo or download the ZIP.  
    ```bash
-   git clone https://github.com/your-team/browseable.git
+   git clone
    ```
 
 2. Open Chrome and go to:  
