@@ -697,6 +697,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'speak' && message.text) {
+    chrome.tts.speak(message.text, {
+      rate: 1.0,
+      pitch: 1.0,
+      volume: 1.0,
+      enqueue: false
+    });
+    return true;
+  }
+
+  if (message.type === 'pause_speech') {
+    console.log('Stopping speech');
+
+    chrome.tts.pause();
+    console.log('Speech stopped by spacebar.');
+    return true;
+
+  }
+
+  if (message.type === 'resume_speech') {
+    console.log('Stopping speech');
+
+    chrome.tts.resume();
+    console.log('Speech stopped by spacebar.');
+    return true;
+
+  }
+
   // Handle the "sendChunk" type message
   if (message.type === 'sendChunk') {
     // Only process chunks if user is logged in
@@ -761,6 +789,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
+
+
 
   return true; // Keep the message channel open for the async response
 });
