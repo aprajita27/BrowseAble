@@ -129,7 +129,11 @@ async function extractContentFromElement(el) {
   const selector = getElementSelector(el);
   let content = { type: null, elementSelector: selector };
 
-  if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(type)) {
+  if (type === "a") {
+    content.type = "link";
+    content.text = el.innerText.trim();
+    content.href = el.href || "";
+  } else if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(type)) {
     content.type = "heading";
     content.level = parseInt(type[1]);
     content.text = el.innerText.trim();
@@ -207,11 +211,11 @@ async function extractPageLayout() {
 
   for (const section of sections) {
     const contentBlocks = [];
-    const children = section.querySelectorAll("h1,h2,h3,h4,h5,h6,p,img,video,ul,ol");
+    const children = section.querySelectorAll("h1,h2,h3,h4,h5,h6,p,img,video,ul,ol,a");
 
     for (const child of children) {
       const content = await extractContentFromElement(child);
-      if (content && (content.text?.length > 0 || content.src || content.base64)) {
+      if (content && (content.text?.length > 0 || content.src || content.base64 || content.href)) {
         contentBlocks.push(content);
       }
     }

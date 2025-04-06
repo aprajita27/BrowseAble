@@ -175,6 +175,8 @@ const neuroPromptStyles = {
  */
 function buildPromptFromChunks(data, neurotype) {
   const contentLines = [];
+  const links = []; // Collect links from the data
+
   console.log('Building prompt from chunks:', features);
 
   // Parse all chunks
@@ -182,29 +184,28 @@ function buildPromptFromChunks(data, neurotype) {
     Object.entries(dataItem).forEach(([chunkId, sections]) => {
       sections.forEach((section, sectionIndex) => {
         if (!section || !section.content) return;
+
         const sectionId = `${chunkId}-${sectionIndex + 1}`;
         const sectionLines = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
-        sections.forEach((section, sectionIndex) => {
-          if (!section || !section.content) return;
 
-          const sectionId = `${chunkId}-${sectionIndex + 1}`;
-          const sectionHeader = [`Section ${sectionId} (${section.role || 'section'})`, `Selector: ${section.elementSelector || 'unknown'}`];
-
-          section.content.forEach((item) => {
-            if (item.type === "image") {
-              const base64Info = item.base64 ? "base64_image_provided" : "no_base64";
-              const label = item.alt?.trim() || "No alt text";
-              sectionHeader.push(`- [image] (${base64Info}) alt="${label}"`);
-            } else if (item.text && item.text.trim()) {
-              const isShort = item.text.trim().split(" ").length < 5;
-              const prefix = isShort ? "[label]" : `[${item.type}]`;
-              sectionHeader.push(`- ${prefix} "${item.text.trim()}"`);
-            }
-          });
-
-          contentLines.push(sectionHeader.join("\n"));
+        section.content.forEach((item) => {
+          if (item.type === "image") {
+            const base64Info = item.base64 ? "base64_image_provided" : "no_base64";
+            const label = item.alt?.trim() || "No alt text";
+            sectionLines.push(`- [image] (${base64Info}) alt="${label}"`);
+          } else if (item.type === "link") {
+            const linkText = item.text?.trim() || "No link text";
+            const linkUrl = item.href || "No URL";
+            sectionLines.push(`- [link] "${linkText}" (${linkUrl})`);
+            links.push({ text: linkText, url: linkUrl }); // Collect the link
+          } else if (item.text && item.text.trim()) {
+            const isShort = item.text.trim().split(" ").length < 5;
+            const prefix = isShort ? "[label]" : `[${item.type}]`;
+            sectionLines.push(`- ${prefix} "${item.text.trim()}"`);
+          }
         });
-        contentLines.push(sectionLines.join('\n'));
+
+        contentLines.push(sectionLines.join("\n"));
       });
     });
   });
@@ -254,21 +255,12 @@ You are an accessibility AI adapting web content for neurodivergent users.
 Neurotype: ${neurotype.toUpperCase()}
 
 Adapt each section using the rules below:
-${specificInstructions} and
-you need to strictly follow the rules of ${features}
+${specificInstructions}
 
-Universal Rules for All Neurotypes:
-- Do not skip any section, even if repetitive
-- Do not over-summarize or merge content across sections
-- Preserve facts, processes, names, and lists, purpose of the site, features provided
-- Describe images using the pattern: "This is an image of ...", if no alt text is present infer the meaning and describe from the link or base64 if given
-- Provide helpful video context using captions or inferred meaning
-- The information about any graphic, or any text block on the page should not be not defined or ambiguous. For each provide the context or inference if not exact meaning
-
-IMPORTANT: Extract the 5 most important links from the content. For each link, identify:
+Extract the 5 most important links from the content provided. Use only the links explicitly mentioned in the content. For each link, identify:
 - The link text or title
 - A one-sentence summary of what the link does or where it leads
-- The full URL if available
+- The full URL
 
 Return clean and complete JSON in this exact format:
 
@@ -285,15 +277,11 @@ Return clean and complete JSON in this exact format:
   "contextualInsights": "2-3 sentences of overall context about this page and its purpose"
 }
 
-
 IMPORTANT FORMATTING RULES:
 - DO NOT use Markdown (*, -, **, _, etc.).
 - Return clean, plain text only.
 - Use line breaks or numbered lists only if needed.
 - Avoid styling markers like "**bold**" or "_italics_".
-
-Strictly adhere to the above instructions. DO NOT RETURN MARKDOWN. DO NOT add explanations. 
-Return Only the JSON.
 
 Webpage Content:
 ${contentLines.join('\n\n')}
