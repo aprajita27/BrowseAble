@@ -1016,3 +1016,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+let isPaused = false;  // Flag to track the pause/play state
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    console.log('Spacebar pressed');
+    e.preventDefault(); // Prevent the default spacebar action
+    if (isPaused) {
+      // If TTS is paused, resume it
+      chrome.runtime.sendMessage({ type: 'resume_speech' });
+      isPaused = false;
+      console.log('Resuming speech...');
+    } else {
+      // If TTS is playing, pause it
+      chrome.runtime.sendMessage({ type: 'pause_speech' });
+      isPaused = true;
+      console.log('Pausing speech...');
+    }
+  }
+});
+
