@@ -742,5 +742,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'speak' && message.text) {
+    chrome.tts.speak(message.text, {
+      rate: 1.0,
+      pitch: 1.0,
+      volume: 1.0,
+      enqueue: false
+    });
+    // return true;
+  }
+
   return true; // Keep the message channel open for the async response
 });
