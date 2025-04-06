@@ -5,7 +5,9 @@
 > Making the web truly accessible—one user at a time.
 
 ## 🚀 Inspiration
-The internet isn't built for everyone. Neurodivergent individuals—those with ADHD, Autism, Blindness, and Sensory Processing Disorders—often find traditional web content overwhelming, inaccessible, or unusable. **BrowseAble** asks:  
+The internet isn't built for everyone. Neurodivergent individuals—those with ADHD, Autism, Blindness, and Sensory Processing Disorders—often find traditional web content overwhelming, inaccessible, or unusable. 
+
+**BrowseAble** asks:  
 **Can AI make the web feel right for every mind?**
 
 ## 🧩 What It Does
