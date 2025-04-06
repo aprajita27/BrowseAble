@@ -10,6 +10,7 @@ import {
 import { db } from '../firebase/firebaseConfig';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import './AuthPage.css';
+import defaultProfilePic from '../assets/default_icon.png';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
@@ -101,8 +102,10 @@ export default function AuthPage() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
+            <img src={defaultProfilePic} alt="Default Profile" className="default-profile-pic" />
             <h1>BrowseAble</h1>
             <div className="caretaker-badge">Caretaker Portal</div>
+
           </div>
 
           <div className="auth-tabs">

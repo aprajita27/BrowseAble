@@ -9,6 +9,8 @@ import { useState } from 'react';
 import './CaretakerDashboard.css';
 import InsightGenerator from '../components/InsightGenerator';
 
+import logo from '../assets/default_icon.png'; // Update path as needed
+
 
 export default function CaretakerDashboard() {
     const navigate = useNavigate();
@@ -208,6 +210,7 @@ export default function CaretakerDashboard() {
             <div className="top-bar"></div>
             <div className="dashboard-sidebar">
                 <div className="sidebar-header">
+                    <img src={logo} alt="BrowseAble Logo" className="dashboard-logo" />
                     <h2>BrowseAble</h2>
                     <div className="caretaker-badge">Caretaker Portal</div>
                 </div>
