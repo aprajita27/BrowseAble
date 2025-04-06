@@ -36,7 +36,7 @@ export default function CaretakerDashboard() {
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [userFeatures, setUserFeatures] = useState<Record<string, boolean>>({});
     const [userModes, setUserModes] = useState<Record<string, boolean>>({});
-    const [featureLabels, setFeatureLabels] = useState<Record<string, string>>({});
+    const [featureLabels, _setFeatureLabels] = useState<Record<string, string>>({});
     const [modeLabels, setModeLabels] = useState<Record<string, string>>({});
 
     const handleSelectUser = async (email: string) => {
