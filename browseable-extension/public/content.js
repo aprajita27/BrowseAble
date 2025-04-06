@@ -375,16 +375,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'gemini_data') {
     console.log('Received processed data in content.js:', message.payload);
 
-    // Hide progress spinner
-    hideProgressSpinner();
-
     // Apply the changes to the page (layout, content, etc.)
     applyLayoutChanges(message.payload);
+    if (activeNeurotype === 'blind') {
+      // If the neurotype is 'blind', read the content of the body aloud
+      readMainContent();
+    }
 
     sendResponse({ status: 'content_data_received' });
     return false;
   }
 });
+
+// Function to extract the main content (excluding navigation, headers, etc.) and read it aloud
+function readMainContent() {
+  // Try to find the main content using common tags and structures
+  // Assuming the overlay is added to a specific container, such as ⁠ #overlay-container ⁠
+  const overlayContainer = document.querySelector('#browseable-overlay'); // Adjust this selector if needed
+
+  if (overlayContainer) {
+    // Grab only the meaningful content elements (e.g., <p>, <h1>, <h2>, etc.)
+    const contentElements = overlayContainer.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
+
+    // Filter out any elements that look like metadata or labels (e.g., anything with a specific class or id you can identify)
+    const filteredContent = Array.from(contentElements)
+      .filter(el => {
+        // Add conditions here to exclude non-main content, e.g. based on class or id
+        return !el.classList.contains('metadata') && !el.classList.contains('footer') && !el.tagName.includes('NAV');
+      })
+      .map(el => el.innerText.trim())
+      .join(' '); // Combine all the relevant text into one string
+    console.log("text", filteredContent);
+    // Trigger Text-to-Speech (TTS) if there is any meaningful text content in the overlay
+    if (filteredContent.length > 0) {
+      speakText(filteredContent);
+    } else {
+      console.log('No main content found in overlay to read aloud.');
+    }
+  } else {
+    console.log('Overlay container not found.');
+  }
+}
+
+
+
+// Function to trigger speech synthesis (TTS)
+function speakText(text) {
+  console.log("Requesting background to speak:", text);
+  chrome.runtime.sendMessage({ type: "speak", text: text });
+}
 
 // Add this function to replace applyLayoutChanges
 
@@ -1120,6 +1159,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     sendResponse({ status: 'processing_canceled' });
     return true;
+  }
+});
+
+let isPaused = false;  // Flag to track the pause/play state
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    console.log('Spacebar pressed');
+    e.preventDefault(); // Prevent the default spacebar action
+    if (isPaused) {
+      // If TTS is paused, resume it
+      chrome.runtime.sendMessage({ type: 'resume_speech' });
+      isPaused = false;
+      console.log('Resuming speech...');
+    } else {
+      // If TTS is playing, pause it
+      chrome.runtime.sendMessage({ type: 'pause_speech' });
+      isPaused = true;
+      console.log('Pausing speech...');
+    }
   }
 });
 
