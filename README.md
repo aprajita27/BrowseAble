@@ -29,7 +29,7 @@ BrowseAble is a Chrome extension that:
 - Caregiver portal with prompt-based insights and multi-user support.
 
 ## 🧪 Try it Out
-- **GitHub**: [[github.com/your-team/browseable](https://github.com/aprajita27/browseable)  ](https://github.com/aprajita27/BrowseAble)
+- **GitHub**: (https://github.com/aprajita27/BrowseAble)
 - **Live Demo / Video**: [link-to-demo]
 
 ## 🤖 Generative AI Usage
