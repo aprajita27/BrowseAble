@@ -264,11 +264,25 @@ Universal Rules for All Neurotypes:
 - Describe images using the pattern: "This is an image of ...", if no alt text is present infer the meaning and describe from the link or base64 if given
 - Provide helpful video context using captions or inferred meaning
 - The information about any graphic, or any text block on the page should not be not defined or ambiguous. For each provide the context or inference if not exact meaning
-- Return clean and complete JSON in this exact format:
+
+IMPORTANT: Extract the 5 most important links from the content. For each link, identify:
+- The link text or title
+- A one-sentence summary of what the link does or where it leads
+- The full URL if available
+
+Return clean and complete JSON in this exact format:
 
 {
   "chunk1-1": "Simplified version of section 1",
-  "chunk1-2": "Simplified version of section 2"
+  "chunk1-2": "Simplified version of section 2",
+  "relevantLinks": [
+    { 
+      "title": "Link title or text",
+      "summary": "One sentence explaining what this link does",
+      "url": "https://example.com/page"
+    }
+  ],
+  "contextualInsights": "2-3 sentences of overall context about this page and its purpose"
 }
 
 
@@ -399,8 +413,13 @@ function transformToLayoutChanges(adaptedContent, originalData) {
   const styleChanges = [];
   const elementChanges = [];
 
+  // Extract relevant links and contextual insights
+  const relevantLinks = adaptedContent.relevantLinks || [];
+  const contextualInsights = adaptedContent.contextualInsights || '';
+
   console.log('Transforming content with original data:', originalData);
   console.log('Adapted content to transform:', adaptedContent);
+  console.log('Relevant links extracted:', relevantLinks);
 
   // Add basic layout improvements for all neurotypes
   layoutChanges.push({
@@ -512,11 +531,14 @@ function transformToLayoutChanges(adaptedContent, originalData) {
   const processedSelectors = new Set();
 
   // Process the adapted content
-  Object.entries(adaptedContent).forEach(([chunkId, simplifiedText]) => {
+  Object.entries(adaptedContent).forEach(([key, value]) => {
+    // Skip the relevantLinks and contextualInsights keys
+    if (key === 'relevantLinks' || key === 'contextualInsights') return;
+
     // Parse the chunk-section format (e.g., "chunk1-2")
-    const parts = chunkId.match(/chunk(\d+)-(\d+)/);
+    const parts = key.match(/chunk(\d+)-(\d+)/);
     if (!parts) {
-      console.log(`Skipping invalid chunk ID format: ${chunkId}`);
+      console.log(`Skipping invalid chunk ID format: ${key}`);
       return;
     }
 
@@ -558,11 +580,11 @@ function transformToLayoutChanges(adaptedContent, originalData) {
     }
 
     // Format the simplified text appropriately based on neurotype
-    let formattedText = simplifiedText;
+    let formattedText = value;
 
     // For ADHD, ensure bullet points are preserved and formatting is enhanced
-    if (activeNeurotype === 'adhd' && simplifiedText.includes('- ')) {
-      formattedText = simplifiedText.split('\n').map(line => {
+    if (activeNeurotype === 'adhd' && value.includes('- ')) {
+      formattedText = value.split('\n').map(line => {
         if (line.startsWith('- ')) {
           return `• ${line.substring(2)}`;
         }
@@ -572,7 +594,7 @@ function transformToLayoutChanges(adaptedContent, originalData) {
 
     // For autism, ensure step-by-step structure is preserved
     if (activeNeurotype === 'autism') {
-      formattedText = simplifiedText.replace(/\n/g, '<br>');
+      formattedText = value.replace(/\n/g, '<br>');
     }
 
     // Apply the simplified text to each content element
@@ -601,7 +623,9 @@ function transformToLayoutChanges(adaptedContent, originalData) {
   return {
     layoutChanges,
     styleChanges,
-    elementChanges
+    elementChanges,
+    relevantLinks,
+    contextualInsights
   };
 }
 

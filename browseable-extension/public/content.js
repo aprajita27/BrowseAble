@@ -624,6 +624,127 @@ function applyLayoutChanges(modifiedLayout) {
   content.appendChild(simplifiedContent);
   overlay.appendChild(content);
 
+  // Add contextual insights if available
+  if (modifiedLayout.contextualInsights) {
+    const insightsContainer = document.createElement('div');
+    insightsContainer.style.cssText = `
+      max-width: 750px;
+      margin: 25px auto;
+      padding: 15px 20px;
+      background: #f0f7ff;
+      border-radius: 8px;
+      border-left: 4px solid #4a7aa7;
+      color: #2c3e50;
+      font-size: 15px;
+    `;
+
+    const insightsTitle = document.createElement('h4');
+    insightsTitle.textContent = 'Page Context';
+    insightsTitle.style.cssText = `
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #4a7aa7;
+    `;
+
+    const insightsText = document.createElement('p');
+    insightsText.textContent = modifiedLayout.contextualInsights;
+    insightsText.style.cssText = `margin: 0;`;
+
+    insightsContainer.appendChild(insightsTitle);
+    insightsContainer.appendChild(insightsText);
+    overlay.appendChild(insightsContainer);
+  }
+
+  // Add relevant links table if available
+  if (modifiedLayout.relevantLinks && modifiedLayout.relevantLinks.length > 0) {
+    const linksContainer = document.createElement('div');
+    linksContainer.style.cssText = `
+      max-width: 750px;
+      margin: 25px auto 40px;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    `;
+
+    const linksTitle = document.createElement('h3');
+    linksTitle.textContent = 'Important Links';
+    linksTitle.style.cssText = `
+      margin: 0 0 15px 0;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee;
+      color: #2c3e50;
+      font-weight: 600;
+      font-size: 18px;
+    `;
+
+    // Create links table
+    const linksTable = document.createElement('table');
+    linksTable.style.cssText = `
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    `;
+
+    // Add table header
+    const tableHeader = document.createElement('thead');
+    tableHeader.innerHTML = `
+      <tr>
+        <th style="text-align: left; padding: 8px; border-bottom: 2px solid #eee; color: #4a7aa7;">Link</th>
+        <th style="text-align: left; padding: 8px; border-bottom: 2px solid #eee; color: #4a7aa7;">Description</th>
+      </tr>
+    `;
+
+    // Add table body
+    const tableBody = document.createElement('tbody');
+
+    // Add rows for each link
+    modifiedLayout.relevantLinks.forEach(link => {
+      const row = document.createElement('tr');
+      row.style.cssText = `border-bottom: 1px solid #f0f0f0;`;
+
+      // Link cell with actual link
+      const linkCell = document.createElement('td');
+      linkCell.style.cssText = `padding: 12px 8px;`;
+
+      const linkElement = document.createElement('a');
+      linkElement.href = link.url;
+      linkElement.textContent = link.title;
+      linkElement.style.cssText = `
+        color: #4a7aa7;
+        text-decoration: none;
+        border-bottom: 1px dotted #4a7aa7;
+        font-weight: 500;
+      `;
+      linkElement.target = "_blank"; // Open in new tab
+
+      linkCell.appendChild(linkElement);
+
+      // Description cell
+      const descCell = document.createElement('td');
+      descCell.textContent = link.summary;
+      descCell.style.cssText = `padding: 12px 8px; color: #555;`;
+
+      // Add cells to row
+      row.appendChild(linkCell);
+      row.appendChild(descCell);
+
+      // Add row to table body
+      tableBody.appendChild(row);
+    });
+
+    // Assemble table
+    linksTable.appendChild(tableHeader);
+    linksTable.appendChild(tableBody);
+
+    // Add elements to container
+    linksContainer.appendChild(linksTitle);
+    linksContainer.appendChild(linksTable);
+
+    // Add container to overlay
+    overlay.appendChild(linksContainer);
+  }
+
   // Add page info at the bottom
   const pageInfo = document.createElement('div');
   pageInfo.style.cssText = `
