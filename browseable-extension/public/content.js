@@ -322,6 +322,12 @@ function sendChunkToGemini(chunkData, chunkIndex, totalChunksExpected) {
 const onPageLoad = async function () {
   console.log("DOM fully loaded or already loaded");
 
+  // Skip Google pages
+  if (isGooglePage()) {
+    console.log("Google page detected. Skipping BrowseAble processing.");
+    return;
+  }
+
   // Show progress spinner when starting to extract layout
   showProgressSpinner("Analyzing page content...");
 
@@ -343,6 +349,14 @@ const onPageLoad = async function () {
     }
   );
 };
+
+// Function to check if the current page is a Google page
+function isGooglePage() {
+  const hostname = window.location.hostname;
+  return hostname.includes('google.') ||
+    hostname === 'gmail.com' ||
+    hostname.endsWith('.google.com');
+}
 
 // Trigger when the DOM is loaded
 if (document.readyState === 'loading') {
@@ -662,6 +676,13 @@ function applyLayoutChanges(modifiedLayout) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'reprocessPage') {
     console.log(`Reprocessing page for neurotype: ${message.neurotype}`);
+
+    // Skip Google pages
+    if (isGooglePage()) {
+      console.log("Google page detected. Skipping BrowseAble processing.");
+      sendResponse({ status: 'google_page_skipped' });
+      return true;
+    }
 
     // Update the active neurotype
     activeNeurotype = message.neurotype;
