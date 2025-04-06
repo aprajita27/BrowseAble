@@ -288,19 +288,42 @@ function chunkLayout(layout, tokenLimit = 1500) {
 
 // Function to send layout data to gemini.js via chrome.runtime
 function sendChunkToGemini(chunkData, chunkIndex, totalChunksExpected) {
-  console.log(`Sending chunk ${chunkIndex} of ${totalChunksExpected}`);  // Add this to debug
+  console.log(`Sending chunk ${chunkIndex} of ${totalChunksExpected}`);
+
+  // Show progress spinner on first chunk
+  if (chunkIndex === 1) {
+    showProgressSpinner("Analyzing page content...");
+  }
+
+  // Update progress counter with chunk info
+  const counter = document.getElementById('browseable-progress-counter');
+  if (counter) {
+    counter.textContent = `Processing chunk ${chunkIndex} of ${totalChunksExpected}`;
+  }
+
   chrome.runtime.sendMessage({
     type: 'sendChunk',
     chunk: chunkData,
     totalChunksExpected: totalChunksExpected
   }, (response) => {
     console.log(`Response for chunk ${chunkIndex}:`, response);
+
+    // If it's the last chunk, we're done with sending, but still processing
+    if (chunkIndex === totalChunksExpected) {
+      const counter = document.getElementById('browseable-progress-counter');
+      if (counter) {
+        counter.textContent = 'Finalizing content adaptation...';
+      }
+    }
   });
 }
 
 // Main function to run on page load
 const onPageLoad = async function () {
   console.log("DOM fully loaded or already loaded");
+
+  // Show progress spinner when starting to extract layout
+  showProgressSpinner("Analyzing page content...");
 
   const structuredData = await extractPageLayout();
   console.log("Extracted structured layout:", structuredData);
@@ -334,6 +357,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'gemini_data') {
     console.log('Received processed data in content.js:', message.payload);
 
+    // Hide progress spinner
+    hideProgressSpinner();
+
     // Apply the changes to the page (layout, content, etc.)
     applyLayoutChanges(message.payload);
 
@@ -345,7 +371,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Add this function to replace applyLayoutChanges
 
 function applyLayoutChanges(modifiedLayout) {
-  console.log('Applying layout changes with text overlay:', modifiedLayout);
+  console.log('Applying layout changes with elegant overlay:', modifiedLayout);
+
+  // Hide the progress spinner if it exists
+  hideProgressSpinner();
 
   // Remove any existing overlay first
   const existingOverlay = document.getElementById('browseable-overlay');
@@ -362,12 +391,11 @@ function applyLayoutChanges(modifiedLayout) {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: white;
+    background-color: #fafafa;
     z-index: 9999;
     overflow-y: auto;
-    padding: 20px;
     box-sizing: border-box;
-    font-family: Arial, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
     color: #333;
   `;
@@ -378,78 +406,112 @@ function applyLayoutChanges(modifiedLayout) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 15px;
+    padding: 15px 25px;
     margin-bottom: 20px;
-    border-bottom: 1px solid #eaeaea;
+    border-bottom: 1px solid #e0e0e0;
     position: sticky;
     top: 0;
-    background: white;
+    background: #fafafa;
     z-index: 10;
   `;
 
   // Add the BrowseAble logo/title
   const title = document.createElement('div');
-  title.innerHTML = '<span style="color: #4CAF50; font-size: 24px;">🌟</span> <strong>BrowseAble</strong>';
-  title.style.fontSize = '18px';
+  title.innerHTML = '<span style="color: #4a7aa7; font-size: 24px;"></span> <strong>BrowseAble</strong>';
+  title.style.cssText = `
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  `;
 
   // Create neurotype indicator
   const neurotype = document.createElement('div');
-  neurotype.textContent = `Mode: ${activeNeurotype.toUpperCase()}`;
+  neurotype.textContent = `${activeNeurotype.toUpperCase()} Mode`;
   neurotype.style.cssText = `
-    background: #4CAF50;
+    background: #4a7aa7;
     color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
+    padding: 5px 12px;
+    border-radius: 20px;
     font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
   `;
 
   // Add close button
   const closeBtn = document.createElement('button');
-  closeBtn.textContent = 'Return to Original Page';
+  closeBtn.textContent = 'Return to Original';
   closeBtn.style.cssText = `
-    background: #f0f0f0;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
+    background: transparent;
+    border: 1px solid #bbb;
+    padding: 8px 15px;
+    border-radius: 20px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 500;
+    font-size: 14px;
+    color: #555;
+    transition: all 0.2s ease;
   `;
+  closeBtn.onmouseover = function () {
+    this.style.backgroundColor = '#f0f0f0';
+  };
+  closeBtn.onmouseout = function () {
+    this.style.backgroundColor = 'transparent';
+  };
   closeBtn.onclick = function () {
     overlay.remove();
   };
 
   // Append the header elements
   header.appendChild(title);
-  header.appendChild(neurotype);
+  // header.appendChild(neurotype);
   header.appendChild(closeBtn);
   overlay.appendChild(header);
 
   // Create content container
   const content = document.createElement('div');
   content.style.cssText = `
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    background: #f9f9f9;
+    max-width: 750px;
+    margin: 0 auto 40px;
+    padding: 25px 30px;
+    background: white;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   `;
 
-  // Format based on neurotype
+  // Apply neurotype-specific styling
   if (activeNeurotype === 'adhd') {
     content.style.lineHeight = '1.8';
+    content.style.letterSpacing = '0.2px';
   } else if (activeNeurotype === 'autism') {
-    content.style.background = '#f8f8ff';
+    content.style.background = '#fcfcff';
+    content.style.borderLeft = '4px solid #4a7aa7';
   } else if (activeNeurotype === 'blind') {
     content.style.fontSize = '18px';
     content.style.lineHeight = '2';
+    content.style.borderBottom = '3px solid #4a7aa7';
   } else if (activeNeurotype === 'sensory') {
-    content.style.background = '#f5f5f5';
+    content.style.background = '#f9f9f9';
     content.style.color = '#444';
+    content.style.boxShadow = 'none';
+    content.style.borderTop = '1px solid #e0e0e0';
+    content.style.borderBottom = '1px solid #e0e0e0';
   }
 
   // Add the simplified content
   const simplifiedContent = document.createElement('div');
+
+  // Document title at the top
+  const pageTitle = document.createElement('h2');
+  pageTitle.textContent = document.title || 'Page Content';
+  pageTitle.style.cssText = `
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 22px;
+  `;
+  simplifiedContent.appendChild(pageTitle);
 
   // Collect all element changes
   if (modifiedLayout.elementChanges && modifiedLayout.elementChanges.length > 0) {
@@ -497,13 +559,19 @@ function applyLayoutChanges(modifiedLayout) {
     // Now render the unique content
     const mainSection = document.createElement('div');
     mainSection.className = 'browseable-section';
-    mainSection.style.marginBottom = '30px';
 
     // Render the headings first
     headings.forEach(item => {
       const heading = document.createElement('h3');
       heading.innerHTML = item.text;
-      heading.style.cssText = 'color: #2c3e50; margin: 25px 0 15px; font-weight: bold;';
+      heading.style.cssText = `
+        color: #2c3e50; 
+        margin: 25px 0 15px; 
+        font-weight: 600;
+        font-size: 18px;
+        border-left: 3px solid #4a7aa7;
+        padding-left: 10px;
+      `;
       mainSection.appendChild(heading);
     });
 
@@ -511,7 +579,18 @@ function applyLayoutChanges(modifiedLayout) {
     paragraphs.forEach(item => {
       const paragraph = document.createElement('div');
       paragraph.innerHTML = item.text;
-      paragraph.style.cssText = 'margin-bottom: 15px;';
+      paragraph.style.cssText = `
+        margin-bottom: 18px;
+        padding-bottom: 6px;
+      `;
+
+      // For ADHD, add subtle visual anchors
+      if (activeNeurotype === 'adhd') {
+        paragraph.style.background = 'rgba(250,250,252,0.8)';
+        paragraph.style.padding = '8px 12px';
+        paragraph.style.borderRadius = '4px';
+      }
+
       mainSection.appendChild(paragraph);
     });
 
@@ -519,9 +598,12 @@ function applyLayoutChanges(modifiedLayout) {
   } else {
     const noContent = document.createElement('p');
     noContent.textContent = 'No simplified content available for this page.';
-    noContent.style.textAlign = 'center';
-    noContent.style.color = '#888';
-    noContent.style.padding = '30px';
+    noContent.style.cssText = `
+      text-align: center;
+      color: #888;
+      padding: 30px;
+      font-style: italic;
+    `;
     simplifiedContent.appendChild(noContent);
   }
 
@@ -532,13 +614,39 @@ function applyLayoutChanges(modifiedLayout) {
   const pageInfo = document.createElement('div');
   pageInfo.style.cssText = `
     text-align: center;
-    margin-top: 30px;
+    margin: 15px auto 20px;
     color: #888;
     font-size: 12px;
-    padding: 10px;
+    max-width: 750px;
   `;
-  pageInfo.textContent = `Original page: ${document.title} | ${window.location.href}`;
+
+  const pageUrl = document.createElement('a');
+  pageUrl.href = window.location.href;
+  pageUrl.textContent = window.location.href;
+  pageUrl.style.cssText = `
+    color: #666;
+    text-decoration: none;
+    border-bottom: 1px dotted #999;
+  `;
+
+  const infoText = document.createElement('div');
+  infoText.textContent = 'Original page: ';
+  infoText.appendChild(pageUrl);
+  pageInfo.appendChild(infoText);
+
   overlay.appendChild(pageInfo);
+
+  // Add BrowseAble signature
+  const signature = document.createElement('div');
+  signature.style.cssText = `
+    text-align: center;
+    margin: 0 auto 30px;
+    color: #aaa;
+    font-size: 11px;
+    max-width: 750px;
+  `;
+  signature.textContent = 'Adapted by BrowseAble • Accessibility for everyone';
+  overlay.appendChild(signature);
 
   // Append the overlay to the body
   document.body.appendChild(overlay);
@@ -546,50 +654,10 @@ function applyLayoutChanges(modifiedLayout) {
   // Add a global variable to track the active neurotype for the overlay
   window.activeNeurotype = activeNeurotype;
 
-  console.log('Text overlay created successfully');
+  console.log('Elegant text overlay created successfully');
 }
 
 // Modify the reprocessPage message handler
-
-// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-//   if (message.type === 'reprocessPage') {
-//     console.log(`Reprocessing page for neurotype: ${message.neurotype}`);
-
-//     // Update the active neurotype
-//     activeNeurotype = message.neurotype;
-
-//     // Show a processing notification
-//     const processingNotification = document.createElement('div');
-//     processingNotification.style.cssText = `
-//       position: fixed;
-//       top: 20px;
-//       left: 50%;
-//       transform: translateX(-50%);
-//       background-color: #4CAF50;
-//       color: white;
-//       padding: 10px 20px;
-//       border-radius: 5px;
-//       font-family: Arial, sans-serif;
-//       z-index: 10000;
-//       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-//     `;
-//     processingNotification.textContent = "🔄 BrowseAble: Adapting content...";
-//     document.body.appendChild(processingNotification);
-
-//     // Re-process the page
-//     setTimeout(() => {
-//       // Remove any existing overlay first
-//       const existingOverlay = document.getElementById('browseable-overlay');
-//       if (existingOverlay) {
-//         existingOverlay.remove();
-//       }
-
-//       onPageLoad();
-//       // Remove the notification after processing starts
-//       processingNotification.remove();
-//     }, 500);
-//   }
-// });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'reprocessPage') {
@@ -598,23 +666,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Update the active neurotype
     activeNeurotype = message.neurotype;
 
-    // Show a processing notification
-    const processingNotification = document.createElement('div');
-    processingNotification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-family: Arial, sans-serif;
-      z-index: 10000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    `;
-    processingNotification.textContent = "🔄 BrowseAble: Adapting content...";
-    document.body.appendChild(processingNotification);
+    // Show a processing spinner with progress
+    showProgressSpinner("Processing content...");
 
     // Re-process the page
     setTimeout(async () => {
@@ -624,7 +677,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       await onPageLoad(); // ensure async operation completes
-      processingNotification.remove();
+      hideProgressSpinner();
       try {
         sendResponse({ status: 'reprocess_complete' });
       } catch (err) {
@@ -635,6 +688,186 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 });
+
+// Add these functions to show/hide a circular progress spinner
+
+function showProgressSpinner(message = "Processing...") {
+  // Remove any existing spinner
+  hideProgressSpinner();
+
+  // Create spinner container
+  const spinnerContainer = document.createElement('div');
+  spinnerContainer.id = 'browseable-progress-container';
+  spinnerContainer.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  `;
+
+  // Add close button in the top-left corner
+  const closeButton = document.createElement('button');
+  closeButton.innerHTML = '&times;'; // × symbol
+  closeButton.style.cssText = `
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    line-height: 24px;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    transition: all 0.2s ease;
+  `;
+  closeButton.title = "Cancel processing";
+
+  // Add hover effects
+  closeButton.onmouseover = function () {
+    this.style.background = '#f0f0f0';
+    this.style.color = '#333';
+  };
+  closeButton.onmouseout = function () {
+    this.style.background = 'rgba(255, 255, 255, 0.8)';
+    this.style.color = '#666';
+  };
+
+  // Add click handler to cancel processing
+  closeButton.onclick = function () {
+    // Hide the spinner
+    hideProgressSpinner();
+
+    // Notify that processing was canceled
+    console.log('Content processing canceled by user');
+
+    // Send message to background script to stop any ongoing processing
+    chrome.runtime.sendMessage({
+      type: 'cancelProcessing'
+    }, (response) => {
+      console.log('Sent cancel processing request:', response);
+    });
+  };
+
+  spinnerContainer.appendChild(closeButton);
+
+  // Create spinner
+  const spinner = document.createElement('div');
+  spinner.className = 'browseable-progress-spinner';
+  spinner.style.cssText = `
+    width: 60px;
+    height: 60px;
+    border: 3px solid rgba(74, 122, 167, 0.2);
+    border-radius: 50%;
+    border-top-color: #4a7aa7;
+    animation: browseable-spin 1s ease-in-out infinite;
+  `;
+
+  // Create keyframes for animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes browseable-spin {
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Create message
+  const messageElement = document.createElement('div');
+  messageElement.textContent = message;
+  messageElement.style.cssText = `
+    margin-top: 20px;
+    color: #4a7aa7;
+    font-size: 16px;
+    font-weight: 500;
+  `;
+
+  // Create progress counter
+  const progressCounter = document.createElement('div');
+  progressCounter.id = 'browseable-progress-counter';
+  progressCounter.textContent = 'Processing...';
+  progressCounter.style.cssText = `
+    margin-top: 10px;
+    color: #666;
+    font-size: 14px;
+  `;
+
+  // Add BrowseAble branding
+  const branding = document.createElement('div');
+  branding.innerHTML = '<strong>BrowseAble</strong>';
+  branding.style.cssText = `
+    position: absolute;
+    bottom: 20px;
+    color: #4a7aa7;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+  `;
+
+  // Append elements
+  spinnerContainer.appendChild(spinner);
+  spinnerContainer.appendChild(messageElement);
+  spinnerContainer.appendChild(progressCounter);
+  spinnerContainer.appendChild(branding);
+  document.body.appendChild(spinnerContainer);
+
+  // Start progress simulation
+  simulateProgress();
+}
+
+function hideProgressSpinner() {
+  const spinner = document.getElementById('browseable-progress-container');
+  if (spinner) {
+    spinner.remove();
+  }
+
+  // Clear any progress simulation interval
+  if (window.browseableProgressInterval) {
+    clearInterval(window.browseableProgressInterval);
+    window.browseableProgressInterval = null;
+  }
+}
+
+function simulateProgress() {
+  let progress = 0;
+  const counter = document.getElementById('browseable-progress-counter');
+
+  // Clear any existing interval
+  if (window.browseableProgressInterval) {
+    clearInterval(window.browseableProgressInterval);
+  }
+
+  window.browseableProgressInterval = setInterval(() => {
+    // Calculate new progress value - faster at first, slower towards the end
+    if (progress < 70) {
+      progress += Math.random() * 5;
+    } else if (progress < 90) {
+      progress += Math.random() * 2;
+    } else if (progress < 95) {
+      progress += 0.5;
+    }
+
+    // Cap at 95% - will go to 100% when complete
+    progress = Math.min(progress, 95);
+
+    if (counter) {
+      counter.textContent = `${Math.floor(progress)}% complete`;
+    }
+  }, 300);
+}
 
 // Add this function to get the neurotype-specific CSS
 
@@ -727,4 +960,20 @@ function getNeurotypeStyles(neurotype) {
 
   return styles[neurotype] || styles.adhd;
 }
+
+// Add to background.js to handle the cancelProcessing message
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'cancelProcessing') {
+    console.log('Received request to cancel processing');
+
+    // Set a flag to cancel ongoing operations
+    window.cancelProcessingRequested = true;
+
+    // Cancel any ongoing API calls if possible
+    // This depends on your implementation of API calls
+
+    sendResponse({ status: 'processing_canceled' });
+    return true;
+  }
+});
 
