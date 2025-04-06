@@ -42,3 +42,32 @@ We used Gemini API to:
 - Add voice commands and keyboard navigation.
 - Support for dyslexia-friendly fonts and contrast settings.
 - Real-time Gemini feedback loops.
+
+
+## 🧭 Getting Started
+
+### 🧩 Install the BrowseAble Chrome Extension
+
+1. Clone this repo or download the ZIP.  
+   ```bash
+   git clone https://github.com/your-team/browseable.git
+   ```
+
+2. Open Chrome and go to:  
+   `chrome://extensions/`
+
+3. Enable **Developer mode** (top right).
+
+4. Click **"Load unpacked"** and select the `extension/` folder from the project.
+
+5. Pin the extension for easy access!
+
+### 🧑‍🤝‍🧑 Access the Caregiver Portal
+
+- Open the caregiver dashboard here:  
+  👉 [https://browseable-586fa.web.app/](https://browseable-586fa.web.app/)
+
+- Log in or sign up as a caregiver.
+
+- Add and manage users with special needs, assign neurotypes, and use Gemini for intelligent recommendations and accessibility prompts.
+
