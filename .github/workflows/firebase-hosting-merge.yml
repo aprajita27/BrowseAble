@@ -17,4 +17,4 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BROWSEABLE_586FA }}
           channelId: live
-          projectId: browseable-586fa
+          projectId: browseable-586fa          
